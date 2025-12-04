@@ -438,7 +438,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		sqsSpan.SetAttributes(
 			attribute.String("aws.sqs.queue.url", cs.sqsClient.QueueURL),
 		)
-		logger.Info("sending data to sqs")
+		logger.Info(fmt.Sprintf("sending order with id [%s] to sqs for processing", orderID.String()))
 		sqsSpan.AddEvent("sending data to sqs", trace.WithAttributes(
 			attribute.String("messaging.operation.name", "send"),
 			attribute.String("messaging.operation.type", "send"),
