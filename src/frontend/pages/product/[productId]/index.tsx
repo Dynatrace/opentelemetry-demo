@@ -79,7 +79,9 @@ const ProductDetail: NextPage<InferGetServerSidePropsType<typeof getServerSidePr
       <Layout>
         <S.ProductDetail data-cy={CypressFields.ProductDetail}>
           <S.Container>
-            <S.Image $src={'/images/products/' + picture} data-cy={CypressFields.ProductPicture} />
+            {picture !== undefined ? (
+              <S.Image $src={'/images/products/' + picture} data-cy={CypressFields.ProductPicture} />
+            ) : null}
             <S.Details>
               <S.Name data-cy={CypressFields.ProductName}>{name}</S.Name>
               <S.Description data-cy={CypressFields.ProductDescription}>{description}</S.Description>
