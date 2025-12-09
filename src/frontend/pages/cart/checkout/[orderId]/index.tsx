@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { NextPage } from 'next';
+import { InferGetServerSidePropsType, NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -14,8 +14,17 @@ import Recommendations from '../../../../components/Recommendations';
 import AdProvider from '../../../../providers/Ad.provider';
 import * as S from '../../../../styles/Checkout.styled';
 import { IProductCheckout } from '../../../../types/Cart';
+import { getCookie } from 'cookies-next';
 
-const Checkout: NextPage = () => {
+export async function getServerSideProps() {
+  const userId = getCookie('USERID') as string;
+
+  return {
+    props: { userId },
+  };
+}
+
+const Checkout: NextPage<InferGetServerSidePropsType<typeof getServerSideProps>> = ({ userId }) => {
   const { query } = useRouter();
   const { items = [], shippingAddress } = JSON.parse((query.order || '{}') as string) as IProductCheckout;
 
@@ -35,11 +44,7 @@ const Checkout: NextPage = () => {
 
             <S.ItemList>
               {items.map(checkoutItem => (
-                <CheckoutItem
-                  key={checkoutItem.item.productId}
-                  checkoutItem={checkoutItem}
-                  address={shippingAddress}
-                />
+                <CheckoutItem key={checkoutItem.item.productId} checkoutItem={checkoutItem} address={shippingAddress} />
               ))}
             </S.ItemList>
 
@@ -52,7 +57,7 @@ const Checkout: NextPage = () => {
           <Recommendations />
         </S.Checkout>
         <Ad />
-        <Footer />
+        <Footer userId={userId} />
       </Layout>
     </AdProvider>
   );

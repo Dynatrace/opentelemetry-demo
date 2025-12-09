@@ -11,9 +11,7 @@ import { useCart } from '../../providers/Cart.provider';
 import { useCurrency } from '../../providers/Currency.provider';
 import * as S from '../../styles/Cart.styled';
 
-const { userId } = SessionGateway.getSession();
-
-const CartDetail = () => {
+const CartDetail = ({ userId }: { userId: string }) => {
   const {
     cart: { items },
     emptyCart,

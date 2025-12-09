@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { NextPage } from 'next';
+import { InferGetServerSidePropsType, NextPage } from 'next';
 import Head from 'next/head';
 import Footer from '../../components/Footer';
 import Layout from '../../components/Layout';
@@ -11,8 +11,17 @@ import CartDetail from '../../components/Cart/CartDetail';
 import EmptyCart from '../../components/Cart/EmptyCart';
 import { useCart } from '../../providers/Cart.provider';
 import AdProvider from '../../providers/Ad.provider';
+import { getCookie } from 'cookies-next';
 
-const Cart: NextPage = () => {
+export async function getServerSideProps() {
+  const userId = getCookie('USERID') as string;
+
+  return {
+    props: { userId },
+  };
+}
+
+const Cart: NextPage<InferGetServerSidePropsType<typeof getServerSideProps>> = ({ userId }) => {
   const {
     cart: { items },
   } = useCart();
@@ -27,10 +36,10 @@ const Cart: NextPage = () => {
       </Head>
       <Layout>
         <S.Cart>
-          {(!!items.length && <CartDetail />) || <EmptyCart />}
+          {(!!items.length && <CartDetail userId={userId} />) || <EmptyCart />}
           <Recommendations />
         </S.Cart>
-        <Footer />
+        <Footer userId={userId} />
       </Layout>
     </AdProvider>
   );

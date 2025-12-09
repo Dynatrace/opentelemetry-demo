@@ -9,13 +9,11 @@ import PlatformFlag from '../PlatformFlag';
 
 const currentYear = new Date().getFullYear();
 
-const { userId } = SessionGateway.getSession();
-
-const Footer = () => {
-  const [sessionId, setSessionId] = useState('');
+const Footer = ({ userId }: { userId: string }) => {
+  const [sessionId, setSessionId] = useState(userId);
 
   useEffect(() => {
-    setSessionId(userId);
+    setSessionId(SessionGateway.getSession().userId);
   }, []);
 
   return (
@@ -29,7 +27,6 @@ const Footer = () => {
       <p>
         @ {currentYear} OpenTelemetry (<a href="https://github.com/open-telemetry/opentelemetry-demo">Source Code</a>)
       </p>
-      <PlatformFlag />
     </S.Footer>
   );
 };

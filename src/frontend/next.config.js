@@ -23,7 +23,7 @@ const {
   ENV_PLATFORM = '',
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = '',
   OTEL_SERVICE_NAME = 'frontend',
-  PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = '',
+  PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = 'otlp-http/v1/traces',
 } = process.env;
 
 const nextConfig = {
@@ -41,6 +41,8 @@ const nextConfig = {
       config.resolve.fallback.fs = false;
     }
 
+    config.optimization.minimize = false;
+
     return config;
   },
   env: {
@@ -57,9 +59,9 @@ const nextConfig = {
     NEXT_PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
   },
   images: {
-    loader: "custom",
-    loaderFile: "./utils/imageLoader.js"
-  }
+    loader: 'custom',
+    loaderFile: './utils/imageLoader.js',
+  },
 };
 
 module.exports = nextConfig;

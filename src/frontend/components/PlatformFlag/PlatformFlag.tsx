@@ -8,9 +8,7 @@ const { NEXT_PUBLIC_PLATFORM = 'local' } = typeof window !== 'undefined' ? windo
 const platform = NEXT_PUBLIC_PLATFORM;
 
 const PlatformFlag = () => {
-  return (
-    <S.Block>{platform}</S.Block>
-  );
+  return <S.Block>{platform}</S.Block>;
 };
 
 export default PlatformFlag;

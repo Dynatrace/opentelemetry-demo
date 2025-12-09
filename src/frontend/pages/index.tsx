@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { NextPage } from 'next';
+import { InferGetServerSidePropsType, NextPage } from 'next';
 import Head from 'next/head';
 import Footer from '../components/Footer';
 import Layout from '../components/Layout';
@@ -12,8 +12,17 @@ import ApiGateway from '../gateways/Api.gateway';
 import Banner from '../components/Banner';
 import { CypressFields } from '../utils/enums/CypressFields';
 import { useCurrency } from '../providers/Currency.provider';
+import { getCookie } from 'cookies-next';
 
-const Home: NextPage = () => {
+export async function getServerSideProps() {
+  const userId = getCookie('USERID') as string;
+
+  return {
+    props: { userId },
+  };
+}
+
+const Home: NextPage<InferGetServerSidePropsType<typeof getServerSideProps>> = ({ userId }) => {
   const { selectedCurrency } = useCurrency();
   const { data: productList = [] } = useQuery({
     queryKey: ['products', selectedCurrency],
@@ -39,7 +48,7 @@ const Home: NextPage = () => {
             </S.Content>
           </S.Row>
         </S.Container>
-        <Footer />
+        <Footer userId={userId} />
       </S.Home>
     </Layout>
   );
