@@ -23,7 +23,7 @@ const {
   ENV_PLATFORM = '',
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = '',
   OTEL_SERVICE_NAME = 'frontend',
-  PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = 'otlp-http/v1/traces',
+  PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = '',
 } = process.env;
 
 const nextConfig = {
@@ -40,8 +40,6 @@ const nextConfig = {
       config.resolve.fallback.dns = false;
       config.resolve.fallback.fs = false;
     }
-
-    config.optimization.minimize = false;
 
     return config;
   },
