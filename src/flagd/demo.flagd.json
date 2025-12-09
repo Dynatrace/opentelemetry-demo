@@ -90,7 +90,7 @@
       }
     },
     "paymentSupportedCardsProblem": {
-      "defaultVariant": "on",
+      "defaultVariant": "off",
       "description": "Supported credit card types",
       "state": "ENABLED",
       "variants": {

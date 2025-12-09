@@ -24,7 +24,7 @@ const FrontendTracer = async () => {
   let resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: NEXT_PUBLIC_OTEL_SERVICE_NAME,
   });
-  const detectedResources = detectResources({detectors: [browserDetector]});
+  const detectedResources = detectResources({ detectors: [browserDetector] });
   resource = resource.merge(detectedResources);
 
   const provider = new WebTracerProvider({
@@ -32,12 +32,12 @@ const FrontendTracer = async () => {
     spanProcessors: [
       new SessionIdProcessor(),
       new BatchSpanProcessor(
-          new OTLPTraceExporter({
-            url: NEXT_PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT || 'http://localhost:4318/v1/traces',
-          }),
-          {
-            scheduledDelayMillis: 500,
-          }
+        new OTLPTraceExporter({
+          url: NEXT_PUBLIC_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT || 'http://localhost:4318/v1/traces',
+        }),
+        {
+          scheduledDelayMillis: 500,
+        }
       ),
     ],
   });
@@ -47,9 +47,7 @@ const FrontendTracer = async () => {
   provider.register({
     contextManager,
     propagator: new CompositePropagator({
-      propagators: [
-        new W3CBaggagePropagator(),
-        new W3CTraceContextPropagator()],
+      propagators: [new W3CBaggagePropagator(), new W3CTraceContextPropagator()],
     }),
   });
 

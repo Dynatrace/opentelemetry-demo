@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useRouter } from 'next/router';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import CartItems from '../CartItems';
 import CheckoutForm from '../CheckoutForm';
 import { IFormData } from '../CheckoutForm/CheckoutForm';
@@ -11,9 +11,7 @@ import { useCart } from '../../providers/Cart.provider';
 import { useCurrency } from '../../providers/Currency.provider';
 import * as S from '../../styles/Cart.styled';
 
-const { userId } = SessionGateway.getSession();
-
-const CartDetail = () => {
+const CartDetail = ({ userId: initId }: { userId: string }) => {
   const {
     cart: { items },
     emptyCart,
@@ -21,6 +19,11 @@ const CartDetail = () => {
   } = useCart();
   const { selectedCurrency } = useCurrency();
   const { push } = useRouter();
+  const [userId, setUserId] = useState(initId);
+
+  useEffect(() => {
+    setUserId(SessionGateway.getSession().userId);
+  }, []);
 
   const onPlaceOrder = useCallback(
     async ({
@@ -59,7 +62,7 @@ const CartDetail = () => {
         query: { order: JSON.stringify(order) },
       });
     },
-    [placeOrder, push, selectedCurrency]
+    [placeOrder, push, selectedCurrency, userId]
   );
 
   return (
