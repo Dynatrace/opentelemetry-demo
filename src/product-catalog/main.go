@@ -82,6 +82,11 @@ func initResource() *sdkresource.Resource {
 }
 
 func initTracerProvider() *sdktrace.TracerProvider {
+    ctx := context.Background()
+    exporter, err := sdktrace.NewSimpleSpanProcessor(nil) // placeholder if OTLP exporter removed
+    if err != nil {
+        logger.Error("Failed to initialize tracer exporter")
+    }
     tp := sdktrace.NewTracerProvider(
         sdktrace.WithResource(initResource()),
     )
