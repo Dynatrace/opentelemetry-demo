@@ -11,7 +11,9 @@ import { useCart } from '../../providers/Cart.provider';
 import { useCurrency } from '../../providers/Currency.provider';
 import * as S from '../../styles/Cart.styled';
 
-const CartDetail = ({ userId: initId }: { userId: string }) => {
+const { userId } = SessionGateway.getSession();
+
+const CartDetail = () => {
   const {
     cart: { items },
     emptyCart,
@@ -19,11 +21,6 @@ const CartDetail = ({ userId: initId }: { userId: string }) => {
   } = useCart();
   const { selectedCurrency } = useCurrency();
   const { push } = useRouter();
-  const [userId, setUserId] = useState(initId);
-
-  useEffect(() => {
-    setUserId(SessionGateway.getSession().userId);
-  }, []);
 
   const onPlaceOrder = useCallback(
     async ({
@@ -62,7 +59,7 @@ const CartDetail = ({ userId: initId }: { userId: string }) => {
         query: { order: JSON.stringify(order) },
       });
     },
-    [placeOrder, push, selectedCurrency, userId]
+    [placeOrder, push, selectedCurrency]
   );
 
   return (

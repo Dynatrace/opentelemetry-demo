@@ -5,15 +5,16 @@ import { useEffect, useState } from 'react';
 import * as S from './Footer.styled';
 import SessionGateway from '../../gateways/Session.gateway';
 import { CypressFields } from '../../utils/enums/CypressFields';
-import PlatformFlag from '../PlatformFlag';
 
 const currentYear = new Date().getFullYear();
 
-const Footer = ({ userId }: { userId: string }) => {
-  const [sessionId, setSessionId] = useState(userId);
+const { userId } = SessionGateway.getSession();
+
+const Footer = () => {
+  const [sessionId, setSessionId] = useState('');
 
   useEffect(() => {
-    setSessionId(SessionGateway.getSession().userId);
+    setSessionId(userId);
   }, []);
 
   return (

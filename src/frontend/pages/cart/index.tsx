@@ -11,17 +11,8 @@ import CartDetail from '../../components/Cart/CartDetail';
 import EmptyCart from '../../components/Cart/EmptyCart';
 import { useCart } from '../../providers/Cart.provider';
 import AdProvider from '../../providers/Ad.provider';
-import { getCookie } from 'cookies-next';
 
-export async function getServerSideProps() {
-  const userId = getCookie('USERID') as string;
-
-  return {
-    props: { userId },
-  };
-}
-
-const Cart: NextPage<InferGetServerSidePropsType<typeof getServerSideProps>> = ({ userId }) => {
+const Cart: NextPage = () => {
   const {
     cart: { items },
   } = useCart();
@@ -36,10 +27,10 @@ const Cart: NextPage<InferGetServerSidePropsType<typeof getServerSideProps>> = (
       </Head>
       <Layout>
         <S.Cart>
-          {(!!items.length && <CartDetail userId={userId} />) || <EmptyCart />}
+          {(!!items.length && <CartDetail />) || <EmptyCart />}
           <Recommendations />
         </S.Cart>
-        <Footer userId={userId} />
+        <Footer />
       </Layout>
     </AdProvider>
   );
