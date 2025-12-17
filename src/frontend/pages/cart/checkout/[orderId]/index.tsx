@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { InferGetServerSidePropsType, NextPage } from 'next';
+import { NextPage } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -16,15 +16,7 @@ import * as S from '../../../../styles/Checkout.styled';
 import { IProductCheckout } from '../../../../types/Cart';
 import { getCookie } from 'cookies-next';
 
-export async function getServerSideProps() {
-  const userId = getCookie('USERID') as string;
-
-  return {
-    props: { userId },
-  };
-}
-
-const Checkout: NextPage<InferGetServerSidePropsType<typeof getServerSideProps>> = ({ userId }) => {
+const Checkout: NextPage = () => {
   const { query } = useRouter();
   const { items = [], shippingAddress } = JSON.parse((query.order || '{}') as string) as IProductCheckout;
 
@@ -57,7 +49,7 @@ const Checkout: NextPage<InferGetServerSidePropsType<typeof getServerSideProps>>
           <Recommendations />
         </S.Checkout>
         <Ad />
-        <Footer userId={userId} />
+        <Footer />
       </Layout>
     </AdProvider>
   );
