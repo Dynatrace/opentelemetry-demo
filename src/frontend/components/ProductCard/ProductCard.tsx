@@ -42,7 +42,6 @@ const ProductCard = ({
       method: 'GET',
       headers: headers,
     };
-    console.log("aaaa" + picture)
     const image_url = `/api/images/${picture}`;
     const requestInfo = new Request(image_url, requestInit);
     getImageWithHeaders(requestInfo).then(blob => {
