@@ -100,6 +100,21 @@ build:
 build-and-push:
 	$(DOCKER_COMPOSE_CMD) $(DOCKER_COMPOSE_ENV) build $(DOCKER_COMPOSE_BUILD_ARGS) --push
 
+# Use to build and push a single service component
+# Example: make build-and-push-service service=frontend
+.PHONY: build-and-push-service
+build-and-push-service:
+# work with `service` or `SERVICE` as input
+ifdef SERVICE
+	service := $(SERVICE)
+endif
+
+ifdef service
+	$(DOCKER_COMPOSE_CMD) $(DOCKER_COMPOSE_ENV) build $(DOCKER_COMPOSE_BUILD_ARGS) --push $(service)
+else
+	@echo "Please provide a service name using `service=[service name]` or `SERVICE=[service name]`"
+endif
+
 # Create multiplatform builder for buildx
 .PHONY: create-multiplatform-builder
 create-multiplatform-builder:
