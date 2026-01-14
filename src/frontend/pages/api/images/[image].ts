@@ -7,7 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { image } = req.query;
 
     if (typeof image !== 'string') {
-      return res.status(400).send('Missing "productId"');
+      return res.status(400).send('Missing "imageName"');
     }
 
     let url;
