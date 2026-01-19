@@ -21,6 +21,7 @@ const ProductCard = ({
   product: {
     id,
     name,
+    picture,
     priceUsd = {
       currencyCode: 'USD',
       units: 0,
@@ -41,7 +42,7 @@ const ProductCard = ({
       method: 'GET',
       headers: headers,
     };
-    const image_url = `/api/images/${id}`;
+    const image_url = `/api/images/${picture}`;
     const requestInfo = new Request(image_url, requestInit);
     getImageWithHeaders(requestInfo).then(blob => {
       setImageSrc(URL.createObjectURL(blob));

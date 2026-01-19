@@ -1,37 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-const idTranslation: Record<string, string> = {
-  'OLJCESPC7Z': 'NationalParkFoundationExplorascope.jpg',
-  '66VCHSJNUP': 'StarsenseExplorer.jpg',
-  '1YMWWN1N4O': 'EclipsmartTravelRefractorTelescope.jpg',
-  'L9ECAV7KIM': 'LensCleaningKit.jpg',
-  '2ZYFJ3GM2N': 'RoofBinoculars.jpg',
-  '0PUK6V6EV0': 'SolarSystemColorImager.jpg',
-  'LS4PSXUNUM': 'RedFlashlight.jpg',
-  '9SIQT8TOJO': 'OpticalTubeAssembly.jpg',
-  '6E92ZMYYFZ': 'SolarFilter.jpg',
-  'HQTGWGPNH4': 'TheCometBook.jpg',
-};
-
 const SCREEN = '860x600';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { id } = req.query;
+    const { image } = req.query;
 
-    if (typeof id !== 'string') {
-      return res.status(400).send('Missing "productId"');
+    if (typeof image !== 'string') {
+      return res.status(400).send('Missing "imageName"');
     }
 
     let url;
 
     if (process.env.LAMBDA_URL === undefined) {
-      const image = idTranslation[id];
-
-      if (image === undefined) {
-        return res.status(404).send(`Image for product [${id}] not found`);
-      }
-
       url = `http://image-provider:8081/products/${image}`;
 
       console.log(`Fetching image from [${url}]`);
@@ -48,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const presignUrl = new URL(`${process.env.LAMBDA_URL}/images`);
-    presignUrl.searchParams.set('productId', id);
+    presignUrl.searchParams.set('productImage', image);
     presignUrl.searchParams.set('screen', SCREEN);
 
     const headers = new Headers();
