@@ -1,6 +1,12 @@
 FROM postgres:17.6
 
+RUN cat <<EOF >> /var/lib/postgresql/data/postgresql.conf
+shared_preload_libraries = 'pg_stat_statements'
+track_activity_query_size = 4096
+EOF
+
 COPY ["./src/postgres/init.sql", "/docker-entrypoint-initdb.d/01-init-otel.sql"]
 COPY ["./dynatrace/init.sql", "/docker-entrypoint-initdb.d/02-init-products.sql"]
+COPY ["./dynatrace/statement_performance.sql", "/docker-entrypoint-initdb.d/03-statement-performance.sql"]
 
 EXPOSE ${POSTGRES_PORT}
