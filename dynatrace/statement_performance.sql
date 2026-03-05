@@ -81,6 +81,6 @@ BEGIN
 END;$$;
 
 
-GRANT USAGE ON SCHEMA dynatrace to dynatrace
+GRANT USAGE ON SCHEMA dynatrace to dynatrace;
 
 ALTER USER dynatrace SET search_path to dynatrace, public;
