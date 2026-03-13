@@ -1,6 +1,6 @@
 FROM postgres:17.6
 
-COPY ["./src/postgres/postgres/init.sql", "/docker-entrypoint-initdb.d/01-init-otel.sql"]
+COPY ["./src/postgres/init.sql", "/docker-entrypoint-initdb.d/01-init-otel.sql"]
 COPY ["./dynatrace/postgres/init.sql", "/docker-entrypoint-initdb.d/02-init-products.sql"]
 COPY ["./dynatrace/postgres/statement_performance.sql", "/docker-entrypoint-initdb.d/03-statement-performance.sql"]
 
