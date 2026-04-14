@@ -38,8 +38,6 @@ from openfeature import api
 from openfeature.contrib.provider.ofrep import OFREPProvider
 from openfeature.contrib.hook.opentelemetry import TracingHook
 
-from playwright.async_api import Route, Request
-
 logger_provider = LoggerProvider(resource=Resource.create(
     {
         "service.name": "load-generator",
@@ -110,18 +108,9 @@ if PAGE_WAIT_UNTIL not in ("load", "domcontentloaded", "commit", "networkidle"):
 
 RUM_FLUSH_MS = int(os.environ.get("RUM_FLUSH_MS", "8000"))
 
-async def add_baggage_header(route: Route, request: Request):
-    existing_baggage = request.headers.get('baggage', '')
-    headers = {
-        **request.headers,
-        'baggage': ', '.join(filter(None, (existing_baggage, 'synthetic_request=true')))
-    }
-    await route.continue_(headers=headers)
-
 async def start_on_product_page(page: PageWithRetry, product_id: str | None = None) -> str:
 
     page.on("console", lambda msg: print(msg.text))
-    await page.route('**/*', add_baggage_header)
 
     pid = product_id or random.choice(products)
     await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
@@ -212,7 +201,6 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
         try:
             page.on("console", lambda msg: print(msg.text))
-            await page.route('**/*', add_baggage_header)
             await page.goto("/", wait_until="domcontentloaded")
 
             # Add 1-4 products to the cart
