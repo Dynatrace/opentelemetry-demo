@@ -204,12 +204,17 @@ async def open_cart_and_go_to_cart_page(page: PageWithRetry):
 class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  #to use a headless browser, without a GUI
+    # Set a class-level default so that copy.copy() used internally by PlaywrightUser
+    # to create sub-users always has the attribute available. __init__ then overrides
+    # it with a per-instance value chosen once for the user's entire lifetime.
+    simulated_ip: str = SIMULATED_IPS[0]
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Each virtual user keeps one IP for its lifetime so all its RUM sessions
-        # appear to come from the same consistent geographic location.
+        # Pick the IP before calling super().__init__() because the parent constructor
+        # immediately calls _pwprep() and creates sub-users via copy.copy(self).
+        # The attribute must already exist on self at copy time.
         self.simulated_ip = random.choice(SIMULATED_IPS)
+        super().__init__(*args, **kwargs)
         logging.info(f"Virtual user assigned simulated IP: {self.simulated_ip}")
 
     async def _pwprep(self):
