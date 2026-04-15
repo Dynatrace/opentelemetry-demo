@@ -147,9 +147,14 @@ SIMULATED_IPS = [
 ]
 
 async def inject_forwarded_ip(route, request, spoofed_ip: str):
-    """Inject X-Forwarded-For on every request so Dynatrace RUM beacons
-    carry a simulated client IP for geolocation mapping."""
-    headers = {**request.headers, "X-Forwarded-For": spoofed_ip}
+    """Inject X-Forwarded-For for geolocation simulation and synthetic_request=true
+    in the W3C baggage header so the frontend SSR flags the session correctly."""
+    existing_baggage = request.headers.get('baggage', '')
+    headers = {
+        **request.headers,
+        "X-Forwarded-For": spoofed_ip,
+        "baggage": ', '.join(filter(None, (existing_baggage, 'synthetic_request=true'))),
+    }
     await route.continue_(headers=headers)
 
 async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None) -> str:
