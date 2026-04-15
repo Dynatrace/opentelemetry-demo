@@ -183,7 +183,7 @@ chromium_args = [
     f"--user-agent={chrome_user_agent}",
 ]
 
-async def inject_forwarded_ip(route: Route, request: Request, spoofed_ip: str):
+async def inject_headers(route: Route, request: Request, spoofed_ip: str):
     """Inject X-Forwarded-For for geolocation simulation and synthetic_request=true
     in the W3C baggage header so the frontend SSR flags the session correctly."""
     existing_baggage = request.headers.get('baggage', '')
@@ -197,7 +197,7 @@ async def inject_forwarded_ip(route: Route, request: Request, spoofed_ip: str):
 async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None) -> str:
 
     page.on("console", lambda msg: print(msg.text))
-    await page.route('**/*', functools.partial(inject_forwarded_ip, spoofed_ip=spoofed_ip))
+    await page.route('**/*', functools.partial(inject_headers, spoofed_ip=spoofed_ip))
 
     pid = product_id or random.choice(products)
     await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
@@ -308,7 +308,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
         try:
             page.on("console", lambda msg: print(msg.text))
-            await page.route('**/*', functools.partial(inject_forwarded_ip, spoofed_ip=self.simulated_ip))
+            await page.route('**/*', functools.partial(inject_headers, spoofed_ip=self.simulated_ip))
             await page.goto("/", wait_until="domcontentloaded")
 
             # Add 1-4 products to the cart
