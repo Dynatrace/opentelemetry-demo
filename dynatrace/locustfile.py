@@ -157,6 +157,16 @@ async def open_cart_and_go_to_cart_page(page: PageWithRetry):
 class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  #to use a headless browser, without a GUI
+    # Override the User-Agent to remove the "HeadlessChrome" token, which Dynatrace's
+    # udger.com-based bot detection classifies as a Robot. A standard Chrome UA string
+    # is used so sessions appear as real user traffic in Dynatrace RUM / Digital Experience.
+    context_kwargs = {
+        "user_agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/145.0.0.0 Safari/537.36"
+        )
+    }
 
     @task(1)
     @pw
