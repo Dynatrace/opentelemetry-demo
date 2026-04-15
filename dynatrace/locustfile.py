@@ -9,6 +9,7 @@ import sys
 import traceback
 import uuid
 import logging
+import functools
 
 from locust import HttpUser, task, between
 from locust_plugins.users.playwright import PlaywrightUser, pw, PageWithRetry, event
@@ -37,6 +38,8 @@ from opentelemetry.sdk.resources import Resource
 from openfeature import api
 from openfeature.contrib.provider.ofrep import OFREPProvider
 from openfeature.contrib.hook.opentelemetry import TracingHook
+
+from playwright.async_api import async_playwright, Route, Request
 
 logger_provider = LoggerProvider(resource=Resource.create(
     {
@@ -110,43 +113,77 @@ RUM_FLUSH_MS = int(os.environ.get("RUM_FLUSH_MS", "8000"))
 
 # Pool of public IPs representing real cities across multiple continents.
 # Dynatrace resolves geolocation from the IP on RUM beacon requests (/rb_*).
-# Each virtual user picks one IP for its entire lifetime so sessions appear
-# to originate from a consistent location rather than a random one per click.
-SIMULATED_IPS = [
+# Each virtual user picks one IP for its entire lifetime so all its sessions
+# appear to originate from a consistent location rather than a random per-click one.
+simulated_ips = [
     # North America
-    "8.8.8.8",        # Google DNS - Mountain View, CA, US
-    "204.79.197.200",  # Bing - Seattle, WA, US
-    "198.41.0.4",      # Cloudflare - New York, NY, US
-    "192.0.2.10",      # Chicago, IL, US (TEST-NET, MaxMind maps to Chicago)
-    "64.233.160.0",    # Google - Atlanta, GA, US
-    "23.185.0.3",      # Fastly CDN - Denver, CO, US
-    "96.7.128.0",      # Akamai - Dallas, TX, US
-    "208.67.222.222",  # OpenDNS - San Jose, CA, US
+    "8.8.8.8",          # Google DNS      – Mountain View, CA, US
+    "204.79.197.200",   # Bing            – Seattle, WA, US
+    "198.41.0.4",       # Cloudflare      – New York, NY, US
+    "192.0.2.10",       # TEST-NET        – Chicago, IL, US
+    "64.233.160.0",     # Google          – Atlanta, GA, US
+    "23.185.0.3",       # Fastly CDN      – Denver, CO, US
+    "96.7.128.0",       # Akamai          – Dallas, TX, US
+    "208.67.222.222",   # OpenDNS         – San Jose, CA, US
     # Europe
-    "185.60.216.35",   # Facebook - Dublin, IE
-    "195.51.195.1",    # Amsterdam, NL
-    "81.2.69.160",     # London, GB
-    "77.75.77.24",     # Prague, CZ
-    "31.13.64.35",     # Facebook - Frankfurt, DE
-    "194.165.16.11",   # Warsaw, PL
-    "193.0.14.129",    # RIPE NCC - Amsterdam, NL
-    "212.58.244.20",   # BBC - London, GB
+    "185.60.216.35",    # Facebook        – Dublin, IE
+    "195.51.195.1",     #                 – Amsterdam, NL
+    "81.2.69.160",      #                 – London, GB
+    "77.75.77.24",      #                 – Prague, CZ
+    "31.13.64.35",      # Facebook        – Frankfurt, DE
+    "194.165.16.11",    #                 – Warsaw, PL
+    "193.0.14.129",     # RIPE NCC        – Amsterdam, NL
+    "212.58.244.20",    # BBC             – London, GB
     # Asia-Pacific
-    "203.208.43.1",    # Google Japan - Tokyo, JP
-    "180.76.76.76",    # Baidu DNS - Beijing, CN
-    "202.12.27.33",    # APNIC - Brisbane, AU
-    "103.86.96.100",   # Singapore
-    "117.18.232.200",  # Mumbai, IN
-    "168.126.63.1",    # KT Corp - Seoul, KR
+    "203.208.43.1",     # Google Japan    – Tokyo, JP
+    "180.76.76.76",     # Baidu DNS       – Beijing, CN
+    "202.12.27.33",     # APNIC           – Brisbane, AU
+    "103.86.96.100",    #                 – Singapore
+    "117.18.232.200",   #                 – Mumbai, IN
+    "168.126.63.1",     # KT Corp         – Seoul, KR
     # Latin America
-    "200.221.11.100",  # São Paulo, BR
-    "201.159.177.1",   # Mexico City, MX
+    "200.221.11.100",   #                 – São Paulo, BR
+    "201.159.177.1",    #                 – Mexico City, MX
     # Middle East / Africa
-    "41.206.26.0",     # Lagos, NG
-    "196.202.45.1",    # Nairobi, KE
+    "41.206.26.0",      #                 – Lagos, NG
+    "196.202.45.1",     #                 – Nairobi, KE
 ]
 
-async def inject_forwarded_ip(route, request, spoofed_ip: str):
+# Headless Chromium advertises "HeadlessChrome" in its User-Agent string, which
+# Dynatrace's udger.com-based bot detection classifies as a Robot. Passing
+# --user-agent at browser launch replaces it with a standard Chrome UA so
+# sessions appear as real user traffic in Dynatrace RUM / Digital Experience.
+chrome_user_agent = (
+    "Mozilla/5.0 (X11; Linux x86_64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/145.0.0.0 Safari/537.36"
+)
+
+chromium_args = [
+    "--disable-gpu",
+    "--disable-setuid-sandbox",
+    "--disable-accelerated-2d-canvas",
+    "--no-zygote",
+    "--frame-throttle-fps=10",
+    "--disable-blink-features=AutomationControlled",
+    "--disable-blink-features",
+    "--disable-translate",
+    "--safebrowsing-disable-auto-update",
+    "--disable-sync",
+    "--hide-scrollbars",
+    "--disable-notifications",
+    "--disable-logging",
+    "--disable-permissions-api",
+    "--ignore-certificate-errors",
+    "--proxy-server='direct://'",
+    "--proxy-bypass-list=*",
+    "--no-first-run",
+    "--disable-audio-output",
+    "--disable-canvas-aa",
+    f"--user-agent={chrome_user_agent}",
+]
+
+async def inject_forwarded_ip(route: Route, request: Request, spoofed_ip: str):
     """Inject X-Forwarded-For for geolocation simulation and synthetic_request=true
     in the W3C baggage header so the frontend SSR flags the session correctly."""
     existing_baggage = request.headers.get('baggage', '')
@@ -160,9 +197,7 @@ async def inject_forwarded_ip(route, request, spoofed_ip: str):
 async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None) -> str:
 
     page.on("console", lambda msg: print(msg.text))
-
-    if spoofed_ip:
-        await page.route("**/*", lambda route, request: inject_forwarded_ip(route, request, spoofed_ip))
+    await page.route('**/*', functools.partial(inject_forwarded_ip, spoofed_ip=spoofed_ip))
 
     pid = product_id or random.choice(products)
     await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
@@ -209,58 +244,25 @@ async def open_cart_and_go_to_cart_page(page: PageWithRetry):
 class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  #to use a headless browser, without a GUI
-    # Set a class-level default so that copy.copy() used internally by PlaywrightUser
-    # to create sub-users always has the attribute available. __init__ then overrides
-    # it with a per-instance value chosen once for the user's entire lifetime.
-    simulated_ip: str = SIMULATED_IPS[0]
+
+    # Class-level default ensures copy.copy() (used by PlaywrightUser internally
+    # to create sub-users) always finds the attribute. __init__ then sets a
+    # per-instance value before super().__init__() runs.
+    simulated_ip: str = simulated_ips[0]
 
     def __init__(self, *args, **kwargs):
-        # Pick the IP before calling super().__init__() because the parent constructor
-        # immediately calls _pwprep() and creates sub-users via copy.copy(self).
-        # The attribute must already exist on self at copy time.
-        self.simulated_ip = random.choice(SIMULATED_IPS)
+        # Must be set before super().__init__() because the parent immediately
+        # calls _pwprep() and shallow-copies self to create sub-users.
+        self.simulated_ip = random.choice(simulated_ips)
         super().__init__(*args, **kwargs)
-        logging.info(f"Virtual user assigned simulated IP: {self.simulated_ip}")
 
-    async def _pwprep(self):
-        # Override _pwprep to inject --user-agent into Chromium launch args.
-        # Headless Chromium advertises "HeadlessChrome" in its User-Agent string,
-        # which Dynatrace's udger.com-based bot detection classifies as a Robot.
-        # Passing --user-agent at launch replaces it with a standard Chrome UA so
-        # sessions appear as real user traffic in Dynatrace RUM / Digital Experience.
-        import playwright.async_api as pw_api
+    async def _pwprep(self) -> None:
         if self.playwright is None:
-            self.playwright = await pw_api.async_playwright().start()
+            self.playwright = await async_playwright().start()
         if self.browser is None:
             self.browser = await self.playwright.chromium.launch(
                 headless=self.headless,
-                args=[
-                    "--disable-gpu",
-                    "--disable-setuid-sandbox",
-                    "--disable-accelerated-2d-canvas",
-                    "--no-zygote",
-                    "--frame-throttle-fps=10",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-blink-features",
-                    "--disable-translate",
-                    "--safebrowsing-disable-auto-update",
-                    "--disable-sync",
-                    "--hide-scrollbars",
-                    "--disable-notifications",
-                    "--disable-logging",
-                    "--disable-permissions-api",
-                    "--ignore-certificate-errors",
-                    "--proxy-server='direct://'",
-                    "--proxy-bypass-list=*",
-                    "--no-first-run",
-                    "--disable-audio-output",
-                    "--disable-canvas-aa",
-                    (
-                        "--user-agent=Mozilla/5.0 (X11; Linux x86_64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/145.0.0.0 Safari/537.36"
-                    ),
-                ],
+                args=chromium_args,
             )
 
     @task(1)
@@ -306,7 +308,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
         try:
             page.on("console", lambda msg: print(msg.text))
-            await page.route("**/*", lambda route, request: inject_forwarded_ip(route, request, self.simulated_ip))
+            await page.route('**/*', functools.partial(inject_forwarded_ip, spoofed_ip=self.simulated_ip))
             await page.goto("/", wait_until="domcontentloaded")
 
             # Add 1-4 products to the cart
@@ -351,7 +353,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
-
+        
 
     @task(1)
     @pw
