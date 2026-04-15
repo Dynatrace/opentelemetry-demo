@@ -108,9 +108,56 @@ if PAGE_WAIT_UNTIL not in ("load", "domcontentloaded", "commit", "networkidle"):
 
 RUM_FLUSH_MS = int(os.environ.get("RUM_FLUSH_MS", "8000"))
 
-async def start_on_product_page(page: PageWithRetry, product_id: str | None = None) -> str:
+# Pool of public IPs representing real cities across multiple continents.
+# Dynatrace resolves geolocation from the IP on RUM beacon requests (/rb_*).
+# Each virtual user picks one IP for its entire lifetime so sessions appear
+# to originate from a consistent location rather than a random one per click.
+SIMULATED_IPS = [
+    # North America
+    "8.8.8.8",        # Google DNS - Mountain View, CA, US
+    "204.79.197.200",  # Bing - Seattle, WA, US
+    "198.41.0.4",      # Cloudflare - New York, NY, US
+    "192.0.2.10",      # Chicago, IL, US (TEST-NET, MaxMind maps to Chicago)
+    "64.233.160.0",    # Google - Atlanta, GA, US
+    "23.185.0.3",      # Fastly CDN - Denver, CO, US
+    "96.7.128.0",      # Akamai - Dallas, TX, US
+    "208.67.222.222",  # OpenDNS - San Jose, CA, US
+    # Europe
+    "185.60.216.35",   # Facebook - Dublin, IE
+    "195.51.195.1",    # Amsterdam, NL
+    "81.2.69.160",     # London, GB
+    "77.75.77.24",     # Prague, CZ
+    "31.13.64.35",     # Facebook - Frankfurt, DE
+    "194.165.16.11",   # Warsaw, PL
+    "193.0.14.129",    # RIPE NCC - Amsterdam, NL
+    "212.58.244.20",   # BBC - London, GB
+    # Asia-Pacific
+    "203.208.43.1",    # Google Japan - Tokyo, JP
+    "180.76.76.76",    # Baidu DNS - Beijing, CN
+    "202.12.27.33",    # APNIC - Brisbane, AU
+    "103.86.96.100",   # Singapore
+    "117.18.232.200",  # Mumbai, IN
+    "168.126.63.1",    # KT Corp - Seoul, KR
+    # Latin America
+    "200.221.11.100",  # São Paulo, BR
+    "201.159.177.1",   # Mexico City, MX
+    # Middle East / Africa
+    "41.206.26.0",     # Lagos, NG
+    "196.202.45.1",    # Nairobi, KE
+]
+
+async def inject_forwarded_ip(route, request, spoofed_ip: str):
+    """Inject X-Forwarded-For on every request so Dynatrace RUM beacons
+    carry a simulated client IP for geolocation mapping."""
+    headers = {**request.headers, "X-Forwarded-For": spoofed_ip}
+    await route.continue_(headers=headers)
+
+async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None) -> str:
 
     page.on("console", lambda msg: print(msg.text))
+
+    if spoofed_ip:
+        await page.route("**/*", lambda route, request: inject_forwarded_ip(route, request, spoofed_ip))
 
     pid = product_id or random.choice(products)
     await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
@@ -158,6 +205,13 @@ class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  #to use a headless browser, without a GUI
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Each virtual user keeps one IP for its lifetime so all its RUM sessions
+        # appear to come from the same consistent geographic location.
+        self.simulated_ip = random.choice(SIMULATED_IPS)
+        logging.info(f"Virtual user assigned simulated IP: {self.simulated_ip}")
+
     async def _pwprep(self):
         # Override _pwprep to inject --user-agent into Chromium launch args.
         # Headless Chromium advertises "HeadlessChrome" in its User-Agent string,
@@ -204,7 +258,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def open_cart_page_and_change_currency(self, page: PageWithRetry):
 
         try:
-            await start_on_product_page(page)
+            await start_on_product_page(page, spoofed_ip=self.simulated_ip)
             await open_cart_and_go_to_cart_page(page)
 
             # Select a random user from the people.json file and change currency
@@ -222,7 +276,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def add_product_to_cart(self, page: PageWithRetry):
 
         try:
-            await start_on_product_page(page)
+            await start_on_product_page(page, spoofed_ip=self.simulated_ip)
 
             # Add 1-4 products (possibly different product IDs each time)
             for _ in range(random.choice([1, 2, 3, 4])):
@@ -242,6 +296,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
         try:
             page.on("console", lambda msg: print(msg.text))
+            await page.route("**/*", lambda route, request: inject_forwarded_ip(route, request, self.simulated_ip))
             await page.goto("/", wait_until="domcontentloaded")
 
             # Add 1-4 products to the cart
@@ -286,7 +341,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
-        
+
 
     @task(1)
     @pw
@@ -294,7 +349,7 @@ class WebsiteBrowserUser(PlaywrightUser):
 
         try:
             pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
-            await start_on_product_page(page, product_id=pid)
+            await start_on_product_page(page, product_id=pid, spoofed_ip=self.simulated_ip)
             await rum_flush(page)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
