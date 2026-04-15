@@ -157,16 +157,47 @@ async def open_cart_and_go_to_cart_page(page: PageWithRetry):
 class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  #to use a headless browser, without a GUI
-    # Override the User-Agent to remove the "HeadlessChrome" token, which Dynatrace's
-    # udger.com-based bot detection classifies as a Robot. A standard Chrome UA string
-    # is used so sessions appear as real user traffic in Dynatrace RUM / Digital Experience.
-    context_kwargs = {
-        "user_agent": (
-            "Mozilla/5.0 (X11; Linux x86_64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/145.0.0.0 Safari/537.36"
-        )
-    }
+
+    async def _pwprep(self):
+        # Override _pwprep to inject --user-agent into Chromium launch args.
+        # Headless Chromium advertises "HeadlessChrome" in its User-Agent string,
+        # which Dynatrace's udger.com-based bot detection classifies as a Robot.
+        # Passing --user-agent at launch replaces it with a standard Chrome UA so
+        # sessions appear as real user traffic in Dynatrace RUM / Digital Experience.
+        import playwright.async_api as pw_api
+        if self.playwright is None:
+            self.playwright = await pw_api.async_playwright().start()
+        if self.browser is None:
+            self.browser = await self.playwright.chromium.launch(
+                headless=self.headless,
+                args=[
+                    "--disable-gpu",
+                    "--disable-setuid-sandbox",
+                    "--disable-accelerated-2d-canvas",
+                    "--no-zygote",
+                    "--frame-throttle-fps=10",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-blink-features",
+                    "--disable-translate",
+                    "--safebrowsing-disable-auto-update",
+                    "--disable-sync",
+                    "--hide-scrollbars",
+                    "--disable-notifications",
+                    "--disable-logging",
+                    "--disable-permissions-api",
+                    "--ignore-certificate-errors",
+                    "--proxy-server='direct://'",
+                    "--proxy-bypass-list=*",
+                    "--no-first-run",
+                    "--disable-audio-output",
+                    "--disable-canvas-aa",
+                    (
+                        "--user-agent=Mozilla/5.0 (X11; Linux x86_64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/145.0.0.0 Safari/537.36"
+                    ),
+                ],
+            )
 
     @task(1)
     @pw
