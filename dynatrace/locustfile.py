@@ -55,6 +55,17 @@ handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
 logging.getLogger().addHandler(handler)
 logging.getLogger().setLevel(logging.INFO)
 
+# Named logger with its own StreamHandler so our messages are visible in the
+# terminal regardless of how Locust reconfigures the root logger after startup.
+log = logging.getLogger("loadgen")
+log.setLevel(logging.INFO)
+log.propagate = False  # don't double-emit through root
+_stream_handler = logging.StreamHandler(sys.stdout)
+_stream_handler.setLevel(logging.INFO)
+_stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(name)s] %(levelname)s %(message)s"))
+log.addHandler(_stream_handler)
+log.addHandler(handler)  # also forward to OTLP
+
 exporter = OTLPMetricExporter(insecure=True)
 set_meter_provider(MeterProvider([PeriodicExportingMetricReader(exporter)]))
 
@@ -281,14 +292,13 @@ class WebsiteBrowserUser(PlaywrightUser):
         # calls _pwprep() and shallow-copies self to create sub-users.
         self.simulated_ip = random.choice(simulated_ips)
         self.user_agent = random.choice(user_agents)
-        print(f"[session] ip={self.simulated_ip} | ua={self.user_agent}")
-        logging.info("Session started: ip=%s ua=%s", self.simulated_ip, self.user_agent)
         super().__init__(*args, **kwargs)
 
     async def _pwprep(self) -> None:
         if self.playwright is None:
             self.playwright = await async_playwright().start()
         if self.browser is None:
+            log.info("Session started: ip=%s ua=%s", self.simulated_ip, self.user_agent)
             self.browser = await self.playwright.chromium.launch(
                 headless=self.headless,
                 args=chromium_base_args + [f"--user-agent={self.user_agent}"],
