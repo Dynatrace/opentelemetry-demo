@@ -281,6 +281,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         # calls _pwprep() and shallow-copies self to create sub-users.
         self.simulated_ip = random.choice(simulated_ips)
         self.user_agent = random.choice(user_agents)
+        print(f"[session] ip={self.simulated_ip} | ua={self.user_agent}")
         logging.info("Session started: ip=%s ua=%s", self.simulated_ip, self.user_agent)
         super().__init__(*args, **kwargs)
 
