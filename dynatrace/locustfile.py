@@ -168,24 +168,119 @@ simulated_ips = [
 # appear to originate from a consistent browser rather than a random per-click one.
 user_agents = [
     # Chrome on Windows
-    "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    {
+        "ua": "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+        "viewport": {
+            "width": 1920,
+            "height": 1080
+        }
+    },
     # Chrome on macOS
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",36",
-    # Chrome on Android
-    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
+    {
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "viewport": {
+            "width": 1440,
+            "height": 900
+        }
+    },
+    {
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "viewport": {
+            "width": 1680,
+            "height": 1050
+        }
+    },
+    # Chrome on Linux
+    {
+        "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+        "viewport": {
+            "width": 1280,
+            "height": 1024
+        }
+    },
     # Firefox on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+    {
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+        "viewport": {
+            "width": 1366,
+            "height": 768
+        }
+    },
+    {
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+        "viewport": {
+            "width": 1920,
+            "height": 1080
+        }
+    },
     # Firefox on macOS
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.4; rv:125.0) Gecko/20100101 Firefox/125.0",
+    {
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.4; rv:125.0) Gecko/20100101 Firefox/125.0",
+        "viewport": {
+            "width": 1440,
+            "height": 900
+        }
+    },
     # Safari on macOS
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
-    # Safari on iPhone
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+    {
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+        "viewport": {
+            "width": 1440,
+            "height": 900
+        }
+    },
+    {
+        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+        "viewport": {
+            "width": 1280,
+            "height": 800
+        }
+    },
     # Edge on Windows
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
+    {
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
+        "viewport": {
+            "width": 1920,
+            "height": 1080
+        }
+    },
+    {
+        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
+        "viewport": {
+            "width": 1366,
+            "height": 768
+        }
+    },
+    # Chrome on Android
+    {
+        "ua": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
+        "viewport": {
+            "width": 393,
+            "height": 851
+        }
+    },
+    {
+        "ua": "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
+        "viewport": {
+            "width": 360,
+            "height": 780
+        }
+    },
+    # Safari on iPhone
+    {
+        "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+        "viewport": {
+            "width": 390,
+            "height": 844
+        }
+    },
+    {
+        "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+        "viewport": {
+            "width": 375,
+            "height": 667
+        }
+    },
 ]
 
 chromium_base_args = [
@@ -222,10 +317,13 @@ async def inject_headers(route: Route, request: Request, spoofed_ip: str):
     }
     await route.continue_(headers=headers)
 
-async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None) -> str:
+async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None, viewport: dict | None = None) -> str:
 
     page.on("console", lambda msg: print(msg.text) if msg.type in ("warning", "error") else None)
     await page.route('**/*', functools.partial(inject_headers, spoofed_ip=spoofed_ip))
+
+    if viewport:
+        await page.set_viewport_size(viewport)
 
     pid = product_id or random.choice(products)
     await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
@@ -277,20 +375,26 @@ class WebsiteBrowserUser(PlaywrightUser):
     # to create sub-users) always finds the attributes. __init__ then sets
     # per-instance values before super().__init__() runs.
     simulated_ip: str = simulated_ips[0]
-    user_agent: str = user_agents[0]
+    user_agent: str = user_agents[0]["ua"]
+    viewport: dict = user_agents[0]["viewport"]
 
     def __init__(self, *args, **kwargs):
         # Must be set before super().__init__() because the parent immediately
         # calls _pwprep() and shallow-copies self to create sub-users.
         self.simulated_ip = random.choice(simulated_ips)
-        self.user_agent = random.choice(user_agents)
+        profile = random.choice(user_agents)
+        self.user_agent = profile["ua"]
+        self.viewport = profile["viewport"]
         super().__init__(*args, **kwargs)
 
     async def _pwprep(self) -> None:
         if self.playwright is None:
             self.playwright = await async_playwright().start()
         if self.browser is None:
-            log.info("Session started: ip=%s ua=%s", self.simulated_ip, self.user_agent)
+            log.info("Session started: ip=%s viewport=%dx%d ua=%s",
+                     self.simulated_ip,
+                     self.viewport["width"], self.viewport["height"],
+                     self.user_agent)
             self.browser = await self.playwright.chromium.launch(
                 headless=self.headless,
                 args=chromium_base_args + [f"--user-agent={self.user_agent}"],
@@ -301,7 +405,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def open_cart_page_and_change_currency(self, page: PageWithRetry):
 
         try:
-            await start_on_product_page(page, spoofed_ip=self.simulated_ip)
+            await start_on_product_page(page, spoofed_ip=self.simulated_ip, viewport=self.viewport)
             await open_cart_and_go_to_cart_page(page)
 
             # Select a random user from the people.json file and change currency
@@ -319,7 +423,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def add_product_to_cart(self, page: PageWithRetry):
 
         try:
-            await start_on_product_page(page, spoofed_ip=self.simulated_ip)
+            await start_on_product_page(page, spoofed_ip=self.simulated_ip, viewport=self.viewport)
 
             # Add 1-4 products (possibly different product IDs each time)
             for _ in range(random.choice([1, 2, 3, 4])):
@@ -340,6 +444,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         try:
             page.on("console", lambda msg: print(msg.text) if msg.type in ("warning", "error") else None)
             await page.route('**/*', functools.partial(inject_headers, spoofed_ip=self.simulated_ip))
+            await page.set_viewport_size(self.viewport)
             await page.goto("/", wait_until="domcontentloaded")
 
             # Add 1-4 products to the cart
@@ -392,7 +497,7 @@ class WebsiteBrowserUser(PlaywrightUser):
 
         try:
             pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
-            await start_on_product_page(page, product_id=pid, spoofed_ip=self.simulated_ip)
+            await start_on_product_page(page, product_id=pid, spoofed_ip=self.simulated_ip, viewport=self.viewport)
             await rum_flush(page)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
