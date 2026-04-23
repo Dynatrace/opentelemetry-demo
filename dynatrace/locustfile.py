@@ -414,6 +414,7 @@ class WebsiteBrowserUser(PlaywrightUser):
                                      value=str(checkout_details['userCurrency']))
 
             await rum_flush(page)
+            log.info("Session completed: open_cart_page_and_change_currency")
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
@@ -434,6 +435,7 @@ class WebsiteBrowserUser(PlaywrightUser):
 
             await open_cart_and_go_to_cart_page(page)
             await rum_flush(page)
+            log.info("Session completed: add_product_to_cart")
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
@@ -486,6 +488,7 @@ class WebsiteBrowserUser(PlaywrightUser):
             # Complete the order
             await page.click('button:has-text("Place Order")')
             await page.wait_for_timeout(8000)  # giving the browser time to export the traces
+            log.info("Session completed: add_product_to_cart_and_checkout")
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
@@ -499,6 +502,7 @@ class WebsiteBrowserUser(PlaywrightUser):
             pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
             await start_on_product_page(page, product_id=pid, spoofed_ip=self.simulated_ip, viewport=self.viewport)
             await rum_flush(page)
+            log.info("Session completed: view_product_page")
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
