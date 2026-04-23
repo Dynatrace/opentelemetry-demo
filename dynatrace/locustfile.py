@@ -221,7 +221,7 @@ async def inject_headers(route: Route, request: Request, spoofed_ip: str):
 
 async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None) -> str:
 
-    page.on("console", lambda msg: print(msg.text))
+    page.on("console", lambda msg: print(msg.text) if msg.type in ("warning", "error") else None)
     await page.route('**/*', functools.partial(inject_headers, spoofed_ip=spoofed_ip))
 
     pid = product_id or random.choice(products)
@@ -335,7 +335,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
         try:
-            page.on("console", lambda msg: print(msg.text))
+            page.on("console", lambda msg: print(msg.text) if msg.type in ("warning", "error") else None)
             await page.route('**/*', functools.partial(inject_headers, spoofed_ip=self.simulated_ip))
             await page.goto("/", wait_until="domcontentloaded")
 
