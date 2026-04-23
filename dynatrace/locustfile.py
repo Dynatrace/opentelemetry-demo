@@ -151,15 +151,41 @@ simulated_ips = [
 
 # Headless Chromium advertises "HeadlessChrome" in its User-Agent string, which
 # Dynatrace's udger.com-based bot detection classifies as a Robot. Passing
-# --user-agent at browser launch replaces it with a standard Chrome UA so
-# sessions appear as real user traffic in Dynatrace RUM / Digital Experience.
-chrome_user_agent = (
-    "Mozilla/5.0 (X11; Linux x86_64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/145.0.0.0 Safari/537.36"
-)
+# --user-agent at browser launch replaces it with a real browser UA so sessions
+# appear as genuine user traffic in Dynatrace RUM / Digital Experience.
+# Each virtual user picks one UA for its entire lifetime so all its sessions
+# appear to originate from a consistent browser rather than a random per-click one.
+user_agents = [
+    # Chrome on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    # Chrome on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    # Chrome on Linux
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    # Firefox on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+    # Firefox on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.4; rv:125.0) Gecko/20100101 Firefox/125.0",
+    # Safari on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+    # Edge on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
+    # Chrome on Android
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 13; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
+    # Safari on iPhone
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_7_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+]
 
-chromium_args = [
+chromium_base_args = [
     "--disable-gpu",
     "--disable-setuid-sandbox",
     "--disable-accelerated-2d-canvas",
@@ -180,7 +206,6 @@ chromium_args = [
     "--no-first-run",
     "--disable-audio-output",
     "--disable-canvas-aa",
-    f"--user-agent={chrome_user_agent}",
 ]
 
 async def inject_headers(route: Route, request: Request, spoofed_ip: str):
@@ -245,15 +270,17 @@ class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  #to use a headless browser, without a GUI
 
-    # Class-level default ensures copy.copy() (used by PlaywrightUser internally
-    # to create sub-users) always finds the attribute. __init__ then sets a
-    # per-instance value before super().__init__() runs.
+    # Class-level defaults ensure copy.copy() (used by PlaywrightUser internally
+    # to create sub-users) always finds the attributes. __init__ then sets
+    # per-instance values before super().__init__() runs.
     simulated_ip: str = simulated_ips[0]
+    user_agent: str = user_agents[0]
 
     def __init__(self, *args, **kwargs):
         # Must be set before super().__init__() because the parent immediately
         # calls _pwprep() and shallow-copies self to create sub-users.
         self.simulated_ip = random.choice(simulated_ips)
+        self.user_agent = random.choice(user_agents)
         super().__init__(*args, **kwargs)
 
     async def _pwprep(self) -> None:
@@ -262,7 +289,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         if self.browser is None:
             self.browser = await self.playwright.chromium.launch(
                 headless=self.headless,
-                args=chromium_args,
+                args=chromium_base_args + [f"--user-agent={self.user_agent}"],
             )
 
     @task(1)
