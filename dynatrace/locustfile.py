@@ -55,6 +55,17 @@ handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
 logging.getLogger().addHandler(handler)
 logging.getLogger().setLevel(logging.INFO)
 
+# Named logger with its own StreamHandler so our messages are visible in the
+# terminal regardless of how Locust reconfigures the root logger after startup.
+log = logging.getLogger("loadgen")
+log.setLevel(logging.INFO)
+log.propagate = False  # don't double-emit through root
+_stream_handler = logging.StreamHandler(sys.stdout)
+_stream_handler.setLevel(logging.INFO)
+_stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(name)s] %(levelname)s %(message)s"))
+log.addHandler(_stream_handler)
+log.addHandler(handler)  # also forward to OTLP
+
 exporter = OTLPMetricExporter(insecure=True)
 set_meter_provider(MeterProvider([PeriodicExportingMetricReader(exporter)]))
 
@@ -151,15 +162,32 @@ simulated_ips = [
 
 # Headless Chromium advertises "HeadlessChrome" in its User-Agent string, which
 # Dynatrace's udger.com-based bot detection classifies as a Robot. Passing
-# --user-agent at browser launch replaces it with a standard Chrome UA so
-# sessions appear as real user traffic in Dynatrace RUM / Digital Experience.
-chrome_user_agent = (
-    "Mozilla/5.0 (X11; Linux x86_64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/145.0.0.0 Safari/537.36"
-)
+# --user-agent at browser launch replaces it with a real browser UA so sessions
+# appear as genuine user traffic in Dynatrace RUM / Digital Experience.
+# Each virtual user picks one UA for its entire lifetime so all its sessions
+# appear to originate from a consistent browser rather than a random per-click one.
+user_agents = [
+    # Chrome on Windows
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    # Chrome on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+    # Firefox on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+    # Firefox on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.4; rv:125.0) Gecko/20100101 Firefox/125.0",
+    # Safari on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+    # Edge on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
+    # Edge on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.3912.72",
+]
 
-chromium_args = [
+chromium_base_args = [
     "--disable-gpu",
     "--disable-setuid-sandbox",
     "--disable-accelerated-2d-canvas",
@@ -180,7 +208,6 @@ chromium_args = [
     "--no-first-run",
     "--disable-audio-output",
     "--disable-canvas-aa",
-    f"--user-agent={chrome_user_agent}",
 ]
 
 async def inject_headers(route: Route, request: Request, spoofed_ip: str):
@@ -196,7 +223,7 @@ async def inject_headers(route: Route, request: Request, spoofed_ip: str):
 
 async def start_on_product_page(page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None) -> str:
 
-    page.on("console", lambda msg: print(msg.text))
+    page.on("console", lambda msg: print(msg.text) if msg.type in ("warning", "error") else None)
     await page.route('**/*', functools.partial(inject_headers, spoofed_ip=spoofed_ip))
 
     pid = product_id or random.choice(products)
@@ -245,31 +272,36 @@ class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  #to use a headless browser, without a GUI
 
-    # Class-level default ensures copy.copy() (used by PlaywrightUser internally
-    # to create sub-users) always finds the attribute. __init__ then sets a
-    # per-instance value before super().__init__() runs.
+    # Class-level defaults ensure copy.copy() (used by PlaywrightUser internally
+    # to create sub-users) always finds the attributes. __init__ then sets
+    # per-instance values before super().__init__() runs.
     simulated_ip: str = simulated_ips[0]
+    user_agent: str = user_agents[0]
 
     def __init__(self, *args, **kwargs):
         # Must be set before super().__init__() because the parent immediately
         # calls _pwprep() and shallow-copies self to create sub-users.
         self.simulated_ip = random.choice(simulated_ips)
+        self.user_agent = random.choice(user_agents)
         super().__init__(*args, **kwargs)
 
     async def _pwprep(self) -> None:
         if self.playwright is None:
             self.playwright = await async_playwright().start()
         if self.browser is None:
+            log.info("Browser launched")
             self.browser = await self.playwright.chromium.launch(
                 headless=self.headless,
-                args=chromium_args,
+                args=chromium_base_args + [f"--user-agent={self.user_agent}"],
             )
 
     @task(1)
     @pw
     async def open_cart_page_and_change_currency(self, page: PageWithRetry):
 
+        task_id = uuid.uuid4().hex[:8]
         try:
+            log.info("[%s] Task started: open_cart_page_and_change_currency ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
             await start_on_product_page(page, spoofed_ip=self.simulated_ip)
             await open_cart_and_go_to_cart_page(page)
 
@@ -279,6 +311,7 @@ class WebsiteBrowserUser(PlaywrightUser):
                                      value=str(checkout_details['userCurrency']))
 
             await rum_flush(page)
+            log.info("[%s] Task completed: open_cart_page_and_change_currency ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
@@ -287,7 +320,9 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     async def add_product_to_cart(self, page: PageWithRetry):
 
+        task_id = uuid.uuid4().hex[:8]
         try:
+            log.info("[%s] Task started: add_product_to_cart ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
             await start_on_product_page(page, spoofed_ip=self.simulated_ip)
 
             # Add 1-4 products (possibly different product IDs each time)
@@ -299,6 +334,7 @@ class WebsiteBrowserUser(PlaywrightUser):
 
             await open_cart_and_go_to_cart_page(page)
             await rum_flush(page)
+            log.info("[%s] Task completed: add_product_to_cart ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
@@ -306,8 +342,10 @@ class WebsiteBrowserUser(PlaywrightUser):
     @task(3)
     @pw
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
+        task_id = uuid.uuid4().hex[:8]
         try:
-            page.on("console", lambda msg: print(msg.text))
+            log.info("[%s] Task started: add_product_to_cart_and_checkout ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
+            page.on("console", lambda msg: print(msg.text) if msg.type in ("warning", "error") else None)
             await page.route('**/*', functools.partial(inject_headers, spoofed_ip=self.simulated_ip))
             await page.goto("/", wait_until="domcontentloaded")
 
@@ -350,19 +388,23 @@ class WebsiteBrowserUser(PlaywrightUser):
             # Complete the order
             await page.click('button:has-text("Place Order")')
             await page.wait_for_timeout(8000)  # giving the browser time to export the traces
+            log.info("[%s] Task completed: add_product_to_cart_and_checkout ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
-        
+
 
     @task(1)
     @pw
     async def view_product_page(self, page: PageWithRetry):
 
+        task_id = uuid.uuid4().hex[:8]
         try:
+            log.info("[%s] Task started: view_product_page ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
             pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
             await start_on_product_page(page, product_id=pid, spoofed_ip=self.simulated_ip)
             await rum_flush(page)
+            log.info("[%s] Task completed: view_product_page ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
