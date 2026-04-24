@@ -299,8 +299,9 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     async def open_cart_page_and_change_currency(self, page: PageWithRetry):
 
+        task_id = uuid.uuid4().hex[:8]
         try:
-            log.info("Task started: open_cart_page_and_change_currency ip=%s ua=%s", self.simulated_ip, self.user_agent)
+            log.info("[%s] Task started: open_cart_page_and_change_currency ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
             await start_on_product_page(page, spoofed_ip=self.simulated_ip)
             await open_cart_and_go_to_cart_page(page)
 
@@ -310,7 +311,7 @@ class WebsiteBrowserUser(PlaywrightUser):
                                      value=str(checkout_details['userCurrency']))
 
             await rum_flush(page)
-            log.info("Task completed: open_cart_page_and_change_currency")
+            log.info("[%s] Task completed: open_cart_page_and_change_currency ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
@@ -319,8 +320,9 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     async def add_product_to_cart(self, page: PageWithRetry):
 
+        task_id = uuid.uuid4().hex[:8]
         try:
-            log.info("Task started: add_product_to_cart ip=%s ua=%s", self.simulated_ip, self.user_agent)
+            log.info("[%s] Task started: add_product_to_cart ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
             await start_on_product_page(page, spoofed_ip=self.simulated_ip)
 
             # Add 1-4 products (possibly different product IDs each time)
@@ -332,7 +334,7 @@ class WebsiteBrowserUser(PlaywrightUser):
 
             await open_cart_and_go_to_cart_page(page)
             await rum_flush(page)
-            log.info("Task completed: add_product_to_cart")
+            log.info("[%s] Task completed: add_product_to_cart ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
@@ -340,8 +342,9 @@ class WebsiteBrowserUser(PlaywrightUser):
     @task(3)
     @pw
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
+        task_id = uuid.uuid4().hex[:8]
         try:
-            log.info("Task started: add_product_to_cart_and_checkout ip=%s ua=%s", self.simulated_ip, self.user_agent)
+            log.info("[%s] Task started: add_product_to_cart_and_checkout ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
             page.on("console", lambda msg: print(msg.text) if msg.type in ("warning", "error") else None)
             await page.route('**/*', functools.partial(inject_headers, spoofed_ip=self.simulated_ip))
             await page.goto("/", wait_until="domcontentloaded")
@@ -385,22 +388,23 @@ class WebsiteBrowserUser(PlaywrightUser):
             # Complete the order
             await page.click('button:has-text("Place Order")')
             await page.wait_for_timeout(8000)  # giving the browser time to export the traces
-            log.info("Task completed: add_product_to_cart_and_checkout")
+            log.info("[%s] Task completed: add_product_to_cart_and_checkout ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
-        
+
 
     @task(1)
     @pw
     async def view_product_page(self, page: PageWithRetry):
 
+        task_id = uuid.uuid4().hex[:8]
         try:
-            log.info("Task started: view_product_page ip=%s ua=%s", self.simulated_ip, self.user_agent)
+            log.info("[%s] Task started: view_product_page ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
             pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
             await start_on_product_page(page, product_id=pid, spoofed_ip=self.simulated_ip)
             await rum_flush(page)
-            log.info("Task completed: view_product_page")
+            log.info("[%s] Task completed: view_product_page ip=%s ua=%s", task_id, self.simulated_ip, self.user_agent)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
