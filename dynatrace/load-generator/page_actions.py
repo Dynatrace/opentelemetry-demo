@@ -2,8 +2,6 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
 
-import functools
-
 from locust_plugins.users.playwright import PageWithRetry
 from playwright.async_api import Route, Request
 
@@ -69,18 +67,9 @@ async def wait_for_background_images(
 
 
 async def start_on_product_page(
-    page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None
+    page: PageWithRetry, product_id: str | None = None
 ) -> str:
     import random
-
-    page.on(
-        "console",
-        lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
-    )
-    if spoofed_ip is not None:
-        await page.route(
-            "**/*", functools.partial(inject_headers, spoofed_ip=spoofed_ip)
-        )
 
     pid = product_id or random.choice(products)
     await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)

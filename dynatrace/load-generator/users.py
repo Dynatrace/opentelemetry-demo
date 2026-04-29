@@ -38,7 +38,9 @@ def tracked_task(fn):
     """Decorator for @pw task coroutines.
 
     Automatically:
-    - Generates a short task_id for log correlation, passed as a kwarg to the wrapped function
+    - Registers a console warning/error listener on the page
+    - Installs the header injection route (X-Forwarded-For + baggage)
+    - Generates a short task_id for log correlation
     - Logs task start and completion (with duration in seconds)
     - Catches exceptions, prints the traceback, and raises RescheduleTask
     """
@@ -54,17 +56,26 @@ def tracked_task(fn):
             self.simulated_ip,
             self.user_agent["label"],
         )
+
+        page.on(
+            "console",
+            lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
+        )
+        await page.route(
+            "**/*", functools.partial(inject_headers, spoofed_ip=self.simulated_ip)
+        )
+
         start = time.monotonic()
         try:
             await fn(self, page)
             duration = time.monotonic() - start
             log.info(
-                "[%s] Task completed in [%.2fs]: [%s] ip=[%s] ua=[%s]",
+                "[%s] Task completed: [%s] ip=[%s] ua=[%s] duration=[%.2fs]",
                 task_id,
-                duration,
                 name,
                 self.simulated_ip,
                 self.user_agent["label"],
+                duration,
             )
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
@@ -104,7 +115,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     @tracked_task
     async def open_cart_page_and_change_currency(self, page: PageWithRetry):
-        await start_on_product_page(page, spoofed_ip=self.simulated_ip)
+        await start_on_product_page(page)
         await open_cart_and_go_to_cart_page(page)
 
         checkout_details = random.choice(people)
@@ -118,7 +129,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     @tracked_task
     async def add_product_to_cart(self, page: PageWithRetry):
-        await start_on_product_page(page, spoofed_ip=self.simulated_ip)
+        await start_on_product_page(page)
 
         # Add 1-4 products (possibly different product IDs each time)
         for _ in range(random.choice([1, 2, 3, 4])):
@@ -133,17 +144,8 @@ class WebsiteBrowserUser(PlaywrightUser):
     @task(3)
     @pw
     @tracked_task
-    async def add_product_to_cart_and_checkout(
-        self, page: PageWithRetry
-    ):
-        page.on(
-            "console",
-            lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
-        )
-        await page.route(
-            "**/*", functools.partial(inject_headers, spoofed_ip=self.simulated_ip)
-        )
-        await page.goto("/", wait_until="domcontentloaded")
+    async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
+        await page.goto("/", wait_until=PAGE_WAIT_UNTIL)
 
         await wait_for_background_images(page, "banner-img", timeout=15_000)
 
@@ -202,5 +204,5 @@ class WebsiteBrowserUser(PlaywrightUser):
     @tracked_task
     async def view_product_page(self, page: PageWithRetry):
         pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
-        await start_on_product_page(page, product_id=pid, spoofed_ip=self.simulated_ip)
+        await start_on_product_page(page, product_id=pid)
         await rum_flush(page)
