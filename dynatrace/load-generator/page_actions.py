@@ -33,7 +33,10 @@ async def start_on_product_page(
         "console",
         lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
     )
-    await page.route("**/*", functools.partial(inject_headers, spoofed_ip=spoofed_ip))
+    if spoofed_ip is not None:
+        await page.route(
+            "**/*", functools.partial(inject_headers, spoofed_ip=spoofed_ip)
+        )
 
     pid = product_id or random.choice(products)
     await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
