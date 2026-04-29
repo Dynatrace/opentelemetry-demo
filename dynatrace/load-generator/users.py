@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
-import inspect
 import random
 import sys
 import time
@@ -30,6 +29,8 @@ from page_actions import (
     open_cart_and_go_to_cart_page,
     rum_flush,
     start_on_product_page,
+    wait_for_background_images,
+    wait_for_img_tags,
 )
 
 
@@ -41,8 +42,6 @@ def tracked_task(fn):
     - Logs task start and completion (with duration in seconds)
     - Catches exceptions, prints the traceback, and raises RescheduleTask
     """
-
-    _wants_task_id = "task_id" in inspect.signature(fn).parameters
 
     @functools.wraps(fn)
     async def wrapper(self, page: PageWithRetry):
@@ -57,9 +56,7 @@ def tracked_task(fn):
         )
         start = time.monotonic()
         try:
-            await fn(self, page, task_id=task_id) if _wants_task_id else await fn(
-                self, page
-            )
+            await fn(self, page)
             duration = time.monotonic() - start
             log.info(
                 "[%s] Task completed in [%.2fs]: [%s] ip=[%s] ua=[%s]",
@@ -127,6 +124,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         for _ in range(random.choice([1, 2, 3, 4])):
             pid = random.choice(products)
             await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
+            # await wait_for_img_tags(page, "product-picture")
             await add_random_quantity_and_add_to_cart(page)
 
         await open_cart_and_go_to_cart_page(page)
@@ -136,7 +134,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     @tracked_task
     async def add_product_to_cart_and_checkout(
-        self, page: PageWithRetry, *, task_id: str
+        self, page: PageWithRetry
     ):
         page.on(
             "console",
@@ -147,28 +145,13 @@ class WebsiteBrowserUser(PlaywrightUser):
         )
         await page.goto("/", wait_until="domcontentloaded")
 
-        # Wait for the banner image to finish loading before interacting with
-        # the page. The banner is now fetched via fetch() + blob URL (same
-        # pattern as product card images), so its src starts empty and is
-        # populated only after the network request completes. Waiting here
-        # ensures the browser has had time to record the banner as an LCP
-        # candidate before we navigate away. Timeout is 30 s to accommodate
-        # intentionally slow loads (imageSlowLoad feature flag / Envoy fault-inject).
-        try:
-            await page.wait_for_function(
-                "() => { const img = document.querySelector('[data-cy=\"banner-img\"]'); return img && img.src && img.src.startsWith('blob:'); }",
-                timeout=30000,
-            )
-        except Exception:
-            log.warning(
-                "[%s] Banner image did not load within timeout; continuing anyway",
-                task_id,
-            )
+        await wait_for_background_images(page, "banner-img", timeout=15_000)
 
         # Add 1-4 products to the cart
         for _ in range(random.choice([1, 2, 3, 4])):
             product_id = random.choice(products)
             await page.click(f"a[href='/product/{product_id}']")
+            # await wait_for_img_tags(page, "product-picture")
             await page.select_option(
                 'select[data-cy="product-quantity"]',
                 value=str(random.choice([3, 4, 5, 8, 9, 10])),

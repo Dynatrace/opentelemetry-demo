@@ -24,6 +24,50 @@ async def inject_headers(route: Route, request: Request, spoofed_ip: str):
     await route.continue_(headers=headers)
 
 
+async def wait_for_img_tags(page: PageWithRetry, data_cy: str, timeout: int = 15000):
+    """Wait until at least one <img data-cy="..."> has fully loaded.
+
+    Uses naturalWidth > 0 as the signal, which becomes non-zero only after the
+    browser has decoded the image. Works whether there is one or many matching
+    elements.
+    """
+    try:
+        await page.wait_for_function(
+            f"""() => {{
+                const imgs = document.querySelectorAll('[data-cy="{data_cy}"]');
+                return Array.from(imgs).some(img => img.naturalWidth > 0);
+            }}""",
+            timeout=timeout,
+        )
+    except Exception:
+        pass
+
+
+async def wait_for_background_images(
+    page: PageWithRetry, data_cy: str, timeout: int = 15000
+):
+    """Wait until at least one element with data-cy="..." has a blob URL set as
+    its inline background-image style.
+
+    Images fetched via fetch() and applied as CSS background-image start with an
+    empty style and are updated to url("blob:...") once the async fetch resolves.
+    Works whether there is one or many matching elements.
+    """
+    try:
+        await page.wait_for_function(
+            f"""() => {{
+                const els = document.querySelectorAll('[data-cy="{data_cy}"]');
+                return Array.from(els).some(el => {{
+                    const bg = el.style && el.style.backgroundImage;
+                    return bg && bg.startsWith('url("blob:');
+                }});
+            }}""",
+            timeout=timeout,
+        )
+    except Exception:
+        pass
+
+
 async def start_on_product_page(
     page: PageWithRetry, product_id: str | None = None, spoofed_ip: str | None = None
 ) -> str:
@@ -45,6 +89,8 @@ async def start_on_product_page(
         await page.wait_for_selector('button:has-text("Add To Cart")', timeout=8000)
     except Exception:
         pass
+
+    await wait_for_img_tags(page, "product-picture")
     return pid
 
 
