@@ -349,6 +349,21 @@ class WebsiteBrowserUser(PlaywrightUser):
             await page.route('**/*', functools.partial(inject_headers, spoofed_ip=self.simulated_ip))
             await page.goto("/", wait_until="domcontentloaded")
 
+            # Wait for the banner image to finish loading before interacting with
+            # the page. The banner is now fetched via fetch() + blob URL (same
+            # pattern as product card images), so its src starts empty and is
+            # populated only after the network request completes. Waiting here
+            # ensures the browser has had time to record the banner as an LCP
+            # candidate before we navigate away. Timeout is 30 s to accommodate
+            # intentionally slow loads (imageSlowLoad feature flag / Envoy fault-inject).
+            try:
+                await page.wait_for_function(
+                    "() => { const img = document.querySelector('[data-cy=\"banner-img\"]'); return img && img.src && img.src.startsWith('blob:'); }",
+                    timeout=30000,
+                )
+            except Exception:
+                log.warning("[%s] Banner image did not load within timeout; continuing anyway", task_id)
+
             # Add 1-4 products to the cart
             for i in range(random.choice([1, 2, 3, 4])):
                 # Get a random product link and click on it

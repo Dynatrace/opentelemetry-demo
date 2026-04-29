@@ -10,22 +10,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).send('Missing "imageName"');
     }
 
-    let url;
-
-    if (process.env.LAMBDA_URL === undefined) {
-      url = `http://image-provider:8081/products/${image}`;
-
-      console.log(`Fetching image from [${url}]`);
-      const r = await fetch(url, { method: 'GET' });
-
-      if (!r.ok) {
-        return res.status(r.status).send(await r.text());
-      }
-
-      res.setHeader('Content-Type', r.headers.get('Content-Type') ?? 'image/png');
-      res.setHeader('Cache-Control', 'public, max-age=300');
-
-      res.status(200).send(Buffer.from(await r.arrayBuffer()));
+    if (process.env.LAMBDA_URL === undefined || image.toLowerCase() === 'banner.png') {
+      return await handleNoLambda(res, image);
     }
 
     const presignUrl = new URL(`${process.env.LAMBDA_URL}/images`);
@@ -47,13 +33,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!json?.url || typeof json.url !== 'string') {
       return res.status(502).send('Presign endpoint returned an invalid payload');
     }
-    
+
     // Step 2: fetch the image directly from S3 via the presigned URL
     const imgResp = await fetch(json.url, { method: 'GET' });
     if (!imgResp.ok) {
       return res.status(imgResp.status).send(await imgResp.text());
     }
-    
+
     // Respond to the browser
     res.setHeader('Content-Type', imgResp.headers.get('Content-Type') ?? 'image/png');
     // Forward upstream cache header if present; otherwise default to 5 minutes
@@ -61,9 +47,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const buf = Buffer.from(await imgResp.arrayBuffer());
     return res.status(200).send(buf);
-
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : typeof err === 'string' ? err : JSON.stringify(err);
     res.status(500).send(`Proxy error: ${message}`);
   }
+}
+
+async function handleNoLambda(res: NextApiResponse, image: string) {
+  let url;
+  if (image.toLowerCase() === 'banner.png') {
+    url = `http://image-provider:8081/Banner.png`;
+    await new Promise(res => setTimeout(res, 6_000));
+  } else {
+    url = `http://image-provider:8081/products/${image}`;
+  }
+
+  console.log(`Fetching image from [${url}]`);
+  const r = await fetch(url, { method: 'GET' });
+
+  if (!r.ok) {
+    return res.status(r.status).send(await r.text());
+  }
+
+  res.setHeader('Content-Type', r.headers.get('Content-Type') ?? 'image/png');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+
+  return res.status(200).send(Buffer.from(await r.arrayBuffer()));
 }
