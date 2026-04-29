@@ -29,8 +29,8 @@ from page_actions import (
     open_cart_and_go_to_cart_page,
     rum_flush,
     start_on_product_page,
-    wait_for_background_images,
-    wait_for_img_tags,
+    wait_for_banner,
+    wait_for_product_card,
 )
 
 
@@ -135,7 +135,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         for _ in range(random.choice([1, 2, 3, 4])):
             pid = random.choice(products)
             await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
-            # await wait_for_img_tags(page, "product-picture")
+            await page.wait_for_timeout(1000)  # flat 1s wait for subsequent navigations
             await add_random_quantity_and_add_to_cart(page)
 
         await open_cart_and_go_to_cart_page(page)
@@ -147,13 +147,13 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
         await page.goto("/", wait_until=PAGE_WAIT_UNTIL)
 
-        await wait_for_background_images(page, "banner-img", timeout=15_000)
+        await wait_for_banner(page)
 
         # Add 1-4 products to the cart
         for _ in range(random.choice([1, 2, 3, 4])):
             product_id = random.choice(products)
             await page.click(f"a[href='/product/{product_id}']")
-            # await wait_for_img_tags(page, "product-picture")
+            await page.wait_for_timeout(1000)  # flat 1s wait for subsequent navigations
             await page.select_option(
                 'select[data-cy="product-quantity"]',
                 value=str(random.choice([3, 4, 5, 8, 9, 10])),

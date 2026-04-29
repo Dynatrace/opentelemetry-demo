@@ -22,44 +22,42 @@ async def inject_headers(route: Route, request: Request, spoofed_ip: str):
     await route.continue_(headers=headers)
 
 
-async def wait_for_img_tags(page: PageWithRetry, data_cy: str, timeout: int = 15000):
-    """Wait until at least one <img data-cy="..."> has fully loaded.
+async def wait_for_banner(page: PageWithRetry, timeout: int = 15000):
+    """Wait until the banner <img data-cy="banner-img"> has fully loaded.
 
-    Uses naturalWidth > 0 as the signal, which becomes non-zero only after the
-    browser has decoded the image. Works whether there is one or many matching
-    elements.
+    The banner fetches its image via fetch(), converts the response to a blob
+    URL and sets it as the src of an <img> tag. naturalWidth > 0 becomes true
+    only after the browser has decoded the image.
     """
     try:
         await page.wait_for_function(
-            f"""() => {{
-                const imgs = document.querySelectorAll('[data-cy="{data_cy}"]');
-                return Array.from(imgs).some(img => img.naturalWidth > 0);
-            }}""",
+            """() => {
+                const img = document.querySelector('[data-cy="banner-img"]');
+                return img && img.naturalWidth > 0;
+            }""",
             timeout=timeout,
         )
     except Exception:
         pass
 
 
-async def wait_for_background_images(
-    page: PageWithRetry, data_cy: str, timeout: int = 15000
-):
-    """Wait until at least one element with data-cy="..." has a blob URL set as
-    its inline background-image style.
+async def wait_for_product_card(page: PageWithRetry, timeout: int = 15000):
+    """Wait until at least one product-card image has loaded.
 
-    Images fetched via fetch() and applied as CSS background-image start with an
-    empty style and are updated to url("blob:...") once the async fetch resolves.
-    Works whether there is one or many matching elements.
+    ProductCard sets its image as a CSS background via a styled-components class
+    (not an inline style), so getComputedStyle is required. The function resolves
+    as soon as the first card's computed backgroundImage is set to any non-none
+    value, which happens once the blob URL is injected into the generated class.
     """
     try:
         await page.wait_for_function(
-            f"""() => {{
-                const els = document.querySelectorAll('[data-cy="{data_cy}"]');
-                return Array.from(els).some(el => {{
-                    const bg = el.style && el.style.backgroundImage;
-                    return bg && bg.startsWith('url("blob:');
-                }});
-            }}""",
+            """() => {
+                const els = document.querySelectorAll('[data-cy="product-card"]');
+                return Array.from(els).some(el => {
+                    const bg = getComputedStyle(el).backgroundImage;
+                    return bg && bg !== 'none' && bg !== '';
+                });
+            }""",
             timeout=timeout,
         )
     except Exception:
@@ -79,7 +77,7 @@ async def start_on_product_page(
     except Exception:
         pass
 
-    await wait_for_img_tags(page, "product-picture")
+    await wait_for_product_card(page)
     return pid
 
 
