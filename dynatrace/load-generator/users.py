@@ -42,6 +42,8 @@ def tracked_task(fn):
     - Catches exceptions, prints the traceback, and raises RescheduleTask
     """
 
+    _wants_task_id = "task_id" in inspect.signature(fn).parameters
+
     @functools.wraps(fn)
     async def wrapper(self, page: PageWithRetry):
         task_id = uuid.uuid4().hex[:8]
@@ -51,9 +53,8 @@ def tracked_task(fn):
             task_id,
             name,
             self.simulated_ip,
-            self.user_agent,
+            self.user_agent["label"],
         )
-        _wants_task_id = "task_id" in inspect.signature(fn).parameters
         start = time.monotonic()
         try:
             await fn(self, page, task_id=task_id) if _wants_task_id else await fn(
@@ -66,7 +67,7 @@ def tracked_task(fn):
                 duration,
                 name,
                 self.simulated_ip,
-                self.user_agent,
+                self.user_agent["label"],
             )
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
@@ -83,7 +84,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     # to create sub-users) always finds the attributes. __init__ then sets
     # per-instance values before super().__init__() runs.
     simulated_ip: str = simulated_ips[0]
-    user_agent: str = user_agents[0]
+    user_agent: dict = user_agents[0]
 
     def __init__(self, *args, **kwargs):
         # Must be set before super().__init__() because the parent immediately
@@ -99,7 +100,7 @@ class WebsiteBrowserUser(PlaywrightUser):
             log.info("Browser launched")
             self.browser = await self.playwright.chromium.launch(
                 headless=self.headless,
-                args=chromium_base_args + [f"--user-agent={self.user_agent}"],
+                args=chromium_base_args + [f"--user-agent={self.user_agent['ua']}"],
             )
 
     @task(1)
