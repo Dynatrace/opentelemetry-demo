@@ -3,10 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import os
 import sys
 
-from opentelemetry import context, baggage, trace
+from opentelemetry import trace
 from opentelemetry.metrics import set_meter_provider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -24,9 +23,6 @@ from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 
-from openfeature import api
-from openfeature.contrib.provider.ofrep import OFREPProvider
-from openfeature.contrib.hook.opentelemetry import TracingHook
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -82,15 +78,3 @@ RequestsInstrumentor().instrument()
 SystemMetricsInstrumentor().instrument()
 URLLib3Instrumentor().instrument()
 logging.info("Instrumentation complete")
-
-# ---------------------------------------------------------------------------
-# OpenFeature / Flagd
-# ---------------------------------------------------------------------------
-_base_url = f"http://{os.environ.get('FLAGD_HOST', 'localhost')}:{os.environ.get('FLAGD_OFREP_PORT', 8016)}"
-api.set_provider(OFREPProvider(base_url=_base_url))
-api.add_hooks([TracingHook()])
-
-
-def get_flagd_value(flag_name: str) -> int:
-    client = api.get_client()
-    return client.get_integer_value(flag_name, 0)
