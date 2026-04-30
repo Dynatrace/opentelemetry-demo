@@ -8,13 +8,17 @@ from playwright.async_api import Route, Request
 from config import PAGE_WAIT_UNTIL, RUM_FLUSH_MS, products
 
 
-async def inject_headers(route: Route, request: Request, spoofed_ip: str):
-    """Inject X-Forwarded-For for geolocation simulation and synthetic_request=true
-    in the W3C baggage header so the frontend SSR flags the session correctly."""
+async def inject_headers(
+    route: Route, request: Request, spoofed_ip: str, user_agent: str
+):
+    """Inject X-Forwarded-For for geolocation simulation, a real browser User-Agent
+    to avoid headless bot detection, and synthetic_request=true in the W3C baggage
+    header so the frontend SSR flags the session correctly."""
     existing_baggage = request.headers.get("baggage", "")
     headers = {
         **request.headers,
         "X-Forwarded-For": spoofed_ip,
+        "User-Agent": user_agent,
         "baggage": ", ".join(
             filter(None, (existing_baggage, "synthetic_request=true"))
         ),

@@ -4,6 +4,7 @@
 
 import json
 import os
+import random
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -31,12 +32,6 @@ products = [
     "OLJCESPC7Z",
     "HQTGWGPNH4",
 ]
-
-# ---------------------------------------------------------------------------
-# People / checkout details
-# ---------------------------------------------------------------------------
-with open(Path(__file__).parent / "people.json") as _people_file:
-    people = json.load(_people_file)
 
 # ---------------------------------------------------------------------------
 # Playwright / browser settings
@@ -145,6 +140,19 @@ user_agents = [
         "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.3912.72",
     },
 ]
+
+# ---------------------------------------------------------------------------
+# People / checkout details
+# ---------------------------------------------------------------------------
+# Each person is loaded from people.json and assigned a fixed simulated IP and
+# User-Agent once at load time, so every task run for that person presents a
+# consistent location and browser identity throughout the lifetime of the process.
+with open(Path(__file__).parent / "people.json") as _people_file:
+    people = json.load(_people_file)
+
+for _person in people:
+    _person["simulated_ip"] = random.choice(simulated_ips)
+    _person["user_agent"] = random.choice(user_agents)
 
 chromium_base_args = [
     "--disable-gpu",

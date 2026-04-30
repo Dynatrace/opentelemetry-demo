@@ -19,8 +19,6 @@ from config import (
     people,
     products,
     PAGE_WAIT_UNTIL,
-    simulated_ips,
-    user_agents,
 )
 from otel_setup import log
 from page_actions import (
@@ -47,14 +45,15 @@ def tracked_task(fn):
 
     @functools.wraps(fn)
     async def wrapper(self, page: PageWithRetry):
+        person = random.choice(people)
         task_id = uuid.uuid4().hex[:8]
         name = fn.__name__
         log.info(
             "[%s] Task started: [%s] ip=[%s] ua=[%s]",
             task_id,
             name,
-            self.simulated_ip,
-            self.user_agent["label"],
+            person["simulated_ip"],
+            person["user_agent"]["label"],
         )
 
         page.on(
@@ -62,19 +61,24 @@ def tracked_task(fn):
             lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
         )
         await page.route(
-            "**/*", functools.partial(inject_headers, spoofed_ip=self.simulated_ip)
+            "**/*",
+            functools.partial(
+                inject_headers,
+                spoofed_ip=person["simulated_ip"],
+                user_agent=person["user_agent"]["ua"],
+            ),
         )
 
         start = time.monotonic()
         try:
-            await fn(self, page)
+            await fn(self, page, person)
             duration = time.monotonic() - start
             log.info(
                 "[%s] Task completed: [%s] ip=[%s] ua=[%s] duration=[%.2fs]",
                 task_id,
                 name,
-                self.simulated_ip,
-                self.user_agent["label"],
+                person["simulated_ip"],
+                person["user_agent"]["label"],
                 duration,
             )
         except Exception as e:
@@ -88,19 +92,6 @@ class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = True  # to use a headless browser, without a GUI
 
-    # Class-level defaults ensure copy.copy() (used by PlaywrightUser internally
-    # to create sub-users) always finds the attributes. __init__ then sets
-    # per-instance values before super().__init__() runs.
-    simulated_ip: str = simulated_ips[0]
-    user_agent: dict = user_agents[0]
-
-    def __init__(self, *args, **kwargs):
-        # Must be set before super().__init__() because the parent immediately
-        # calls _pwprep() and shallow-copies self to create sub-users.
-        self.simulated_ip = random.choice(simulated_ips)
-        self.user_agent = random.choice(user_agents)
-        super().__init__(*args, **kwargs)
-
     async def _pwprep(self) -> None:
         if self.playwright is None:
             self.playwright = await async_playwright().start()
@@ -108,17 +99,17 @@ class WebsiteBrowserUser(PlaywrightUser):
             log.info("Browser launched")
             self.browser = await self.playwright.chromium.launch(
                 headless=self.headless,
-                args=chromium_base_args + [f"--user-agent={self.user_agent['ua']}"],
+                args=chromium_base_args,
             )
 
     # @task(1)
     # @pw
     # @tracked_task
-    # async def open_cart_page_and_change_currency(self, page: PageWithRetry):
+    # async def open_cart_page_and_change_currency(self, page: PageWithRetry, person: dict):
     #     await start_on_product_page(page)
     #     await open_cart_and_go_to_cart_page(page)
-
-    #     checkout_details = random.choice(people)
+    #
+    #     checkout_details = person
     #     await page.select_option(
     #         '[name="currency_code"]', value=str(checkout_details["userCurrency"])
     #     )
@@ -128,7 +119,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     # @task(1)
     # @pw
     # @tracked_task
-    # async def add_product_to_cart(self, page: PageWithRetry):
+    # async def add_product_to_cart(self, page: PageWithRetry, person: dict):
     #     await start_on_product_page(page)
 
     #     # Add 1-4 products (possibly different product IDs each time)
@@ -144,7 +135,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     @task(3)
     @pw
     @tracked_task
-    async def add_product_to_cart_and_checkout(self, page: PageWithRetry):
+    async def add_product_to_cart_and_checkout(self, page: PageWithRetry, person: dict):
         await page.goto("/", wait_until=PAGE_WAIT_UNTIL)
 
         await wait_for_banner(page)
@@ -165,7 +156,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         await page.click('a[data-cy="cart-icon"]')
         await page.click('button:has-text("Go to Shopping Cart")')
 
-        checkout_details = random.choice(people)
+        checkout_details = person
         await page.select_option(
             'select[name="currency_code"]', value=str(checkout_details["userCurrency"])
         )
@@ -202,7 +193,7 @@ class WebsiteBrowserUser(PlaywrightUser):
     # @task(1)
     # @pw
     # @tracked_task
-    # async def view_product_page(self, page: PageWithRetry):
+    # async def view_product_page(self, page: PageWithRetry, person: dict):
     #     pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
     #     await start_on_product_page(page, product_id=pid)
     #     await rum_flush(page)
