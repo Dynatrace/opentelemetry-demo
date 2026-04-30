@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).send('Missing "imageName"');
     }
 
-    if (process.env.LAMBDA_URL === undefined || image.toLowerCase() === 'banner.png') {
+    if (process.env.LAMBDA_URL === undefined) {
       return await handleNoLambda(res, image);
     }
 
@@ -57,7 +57,6 @@ async function handleNoLambda(res: NextApiResponse, image: string) {
   let url;
   if (image.toLowerCase() === 'banner.png') {
     url = `http://image-provider:8081/Banner.png`;
-    await new Promise(res => setTimeout(res, 6_000));
   } else {
     url = `http://image-provider:8081/products/${image}`;
   }

@@ -86,7 +86,7 @@ def tracked_task(fn):
 
 class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
-    headless = False  # to use a headless browser, without a GUI
+    headless = True  # to use a headless browser, without a GUI
 
     async def _pwprep(self) -> None:
         if self.playwright is None:
