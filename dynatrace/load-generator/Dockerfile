@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 
 FROM base AS builder
 RUN apt-get -qq update \
@@ -18,6 +18,6 @@ COPY --from=builder /reqs /usr/local
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 RUN playwright install --with-deps chromium
 
-COPY ./dynatrace/load-generator/ .
+COPY ./dynatrace/load-generator/src/ .
 
 ENTRYPOINT ["locust", "--skip-log-setup"]

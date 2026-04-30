@@ -111,35 +111,35 @@ class WebsiteBrowserUser(PlaywrightUser):
                 args=chromium_base_args + [f"--user-agent={self.user_agent['ua']}"],
             )
 
-    @task(1)
-    @pw
-    @tracked_task
-    async def open_cart_page_and_change_currency(self, page: PageWithRetry):
-        await start_on_product_page(page)
-        await open_cart_and_go_to_cart_page(page)
+    # @task(1)
+    # @pw
+    # @tracked_task
+    # async def open_cart_page_and_change_currency(self, page: PageWithRetry):
+    #     await start_on_product_page(page)
+    #     await open_cart_and_go_to_cart_page(page)
 
-        checkout_details = random.choice(people)
-        await page.select_option(
-            '[name="currency_code"]', value=str(checkout_details["userCurrency"])
-        )
+    #     checkout_details = random.choice(people)
+    #     await page.select_option(
+    #         '[name="currency_code"]', value=str(checkout_details["userCurrency"])
+    #     )
 
-        await rum_flush(page)
+    #     await rum_flush(page)
 
-    @task(1)
-    @pw
-    @tracked_task
-    async def add_product_to_cart(self, page: PageWithRetry):
-        await start_on_product_page(page)
+    # @task(1)
+    # @pw
+    # @tracked_task
+    # async def add_product_to_cart(self, page: PageWithRetry):
+    #     await start_on_product_page(page)
 
-        # Add 1-4 products (possibly different product IDs each time)
-        for _ in range(random.choice([1, 2, 3, 4])):
-            pid = random.choice(products)
-            await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
-            await page.wait_for_timeout(1000)  # flat 1s wait for subsequent navigations
-            await add_random_quantity_and_add_to_cart(page)
+    #     # Add 1-4 products (possibly different product IDs each time)
+    #     for _ in range(random.choice([1, 2, 3, 4])):
+    #         pid = random.choice(products)
+    #         await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
+    #         await page.wait_for_timeout(1000)  # flat 1s wait for subsequent navigations
+    #         await add_random_quantity_and_add_to_cart(page)
 
-        await open_cart_and_go_to_cart_page(page)
-        await rum_flush(page)
+    #     await open_cart_and_go_to_cart_page(page)
+    #     await rum_flush(page)
 
     @task(3)
     @pw
@@ -150,7 +150,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         await wait_for_banner(page)
 
         # Add 1-4 products to the cart
-        for _ in range(random.choice([1, 2, 3, 4])):
+        for _ in range(random.choice([1, 2])):
             product_id = random.choice(products)
             await page.click(f"a[href='/product/{product_id}']")
             await page.wait_for_timeout(1000)  # flat 1s wait for subsequent navigations
@@ -199,10 +199,10 @@ class WebsiteBrowserUser(PlaywrightUser):
             8000
         )  # giving the browser time to export the traces
 
-    @task(1)
-    @pw
-    @tracked_task
-    async def view_product_page(self, page: PageWithRetry):
-        pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
-        await start_on_product_page(page, product_id=pid)
-        await rum_flush(page)
+    # @task(1)
+    # @pw
+    # @tracked_task
+    # async def view_product_page(self, page: PageWithRetry):
+    #     pid = random.choice(["0PUK6V6EV0", "1YMWWN1N4O", "2ZYFJ3GM2N", "66VCHSJNUP"])
+    #     await start_on_product_page(page, product_id=pid)
+    #     await rum_flush(page)
