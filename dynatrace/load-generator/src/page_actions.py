@@ -2,10 +2,12 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
 
+import random
+
 from locust_plugins.users.playwright import PageWithRetry
 from playwright.async_api import Route, Request
 
-from config import PAGE_WAIT_UNTIL, RUM_FLUSH_MS, products
+from config import PAGE_WAIT_UNTIL
 
 
 async def inject_headers(
@@ -67,58 +69,60 @@ async def wait_for_product_card(page: PageWithRetry, timeout: int = 15000):
     except Exception:
         pass
 
+async def order_product(page: PageWithRetry):
+    cards = await page.query_selector_all('[data-cy="product-card"]')
+    card = random.choice(cards)
+    await card.scroll_into_view_if_needed()
+    await page.wait_for_timeout(1000)
+    async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
+        await card.click()
+    await page.wait_for_timeout(2000)
+    await page.select_option(
+        'select[data-cy="product-quantity"]',
+        value=str(random.choice([1, 2, 3, 4, 5, 10])),
+    )
+    await page.wait_for_timeout(1000)
+    async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
+        await page.click('button:has-text("Add To Cart")')
 
-async def start_on_product_page(
-    page: PageWithRetry, product_id: str | None = None
-) -> str:
-    import random
-
-    pid = product_id or random.choice(products)
-    await page.goto(f"/product/{pid}", wait_until=PAGE_WAIT_UNTIL)
-
-    try:
-        await page.wait_for_selector('button:has-text("Add To Cart")', timeout=8000)
-    except Exception:
-        pass
-
-    await wait_for_product_card(page)
-    return pid
-
-
-async def rum_flush(page: PageWithRetry, ms: int = RUM_FLUSH_MS):
-    await page.wait_for_timeout(ms)
-
-
-async def add_random_quantity_and_add_to_cart(page: PageWithRetry):
-    import random
-
-    try:
-        await page.select_option(
-            'select[data-cy="product-quantity"]',
-            value=str(random.choice([1, 2, 3, 4, 5, 10])),
-        )
-    except Exception:
-        pass
-
-    await page.click('button:has-text("Add To Cart")', timeout=6000)
-
-    try:
-        await page.click('button:has-text("Continue Shopping")', timeout=6000)
-    except Exception:
-        pass
-
-
-async def open_cart_and_go_to_cart_page(page: PageWithRetry):
-    try:
-        await page.click('a[data-cy="cart-icon"]', timeout=6000)
-
-        try:
-            async with page.expect_navigation(timeout=8000):
-                await page.click('button:has-text("Go to Shopping Cart")', timeout=6000)
-        except Exception:
-            try:
-                await page.wait_for_url("**/cart**", timeout=8000)
-            except Exception:
-                pass
-    except Exception:
-        pass
+async def complete_checkout(page: PageWithRetry, person: dict):
+    # add a timeout between each action to make the replay look slightly better
+    action_duration = 100
+    await page.select_option(
+        'select[name="currency_code"]', value=str(person["userCurrency"])
+    )
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#email").fill(person["email"])
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#street_address").fill(
+        person["address"]["streetAddress"]
+    )
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#zip_code").fill(str(person["address"]["zipCode"]))
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#city").fill(person["address"]["city"])
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#state").fill(person["address"]["state"])
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#country").fill(person["address"]["country"])
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#credit_card_number").fill(
+        str(person["creditCard"]["creditCardNumber"])
+    )
+    await page.wait_for_timeout(action_duration)
+    await page.select_option(
+        "select#credit_card_expiration_month",
+        value=str(person["creditCard"]["creditCardExpirationMonth"]),
+    )
+    await page.wait_for_timeout(action_duration)
+    await page.select_option(
+        "select#credit_card_expiration_year",
+        value=str(person["creditCard"]["creditCardExpirationYear"]),
+    )
+    await page.wait_for_timeout(action_duration)
+    await page.locator("input#credit_card_cvv").fill(
+        str(person["creditCard"]["creditCardCvv"])
+    )
+    await page.wait_for_timeout(action_duration)
+    async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
+        await page.click('button:has-text("Place Order")')
