@@ -125,9 +125,9 @@ RUM_FLUSH_MS = int(os.environ.get("RUM_FLUSH_MS", "8000"))
 # When set to "true" (default), the W3C baggage header "synthetic_request=true" is
 # injected into every Playwright request. The frontend SSR uses this flag to route
 # browser-side OTLP traces directly to the internal collector instead of the public
-# proxy endpoint. Set SYNTHETIC_REQUEST=false on HTTPS deployments where the internal
-# collector URL is unreachable from the browser (Mixed Content).
-SYNTHETIC_REQUEST = os.environ.get("SYNTHETIC_REQUEST", "true").lower() == "true"
+# proxy endpoint. Set SYNTHETIC_REQUEST_ENABLED=false on HTTPS deployments where the
+# internal collector URL is unreachable from the browser (Mixed Content).
+SYNTHETIC_REQUEST_ENABLED = os.environ.get("SYNTHETIC_REQUEST_ENABLED", "true").lower() == "true"
 
 # Pool of public IPs representing real cities across multiple continents.
 # Dynatrace resolves geolocation from the IP on RUM beacon requests (/rb_*).
@@ -222,7 +222,7 @@ async def inject_headers(route: Route, request: Request, spoofed_ip: str):
     is enabled, synthetic_request=true in the W3C baggage header so the frontend SSR
     flags the session correctly."""
     existing_baggage = request.headers.get('baggage', '')
-    extra_baggage = 'synthetic_request=true' if SYNTHETIC_REQUEST else ''
+    extra_baggage = 'synthetic_request=true' if SYNTHETIC_REQUEST_ENABLED else ''
     headers = {
         **request.headers,
         "X-Forwarded-For": spoofed_ip,
