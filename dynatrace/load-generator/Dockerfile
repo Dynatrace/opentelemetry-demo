@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 
 FROM base AS builder
 RUN apt-get -qq update \
     && apt-get install -y --no-install-recommends g++ \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ./src/load-generator/requirements.txt .
+COPY ./dynatrace/load-generator/requirements.txt .
 RUN pip install --prefix="/reqs" -r requirements.txt
 
 FROM base
@@ -18,9 +18,6 @@ COPY --from=builder /reqs /usr/local
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 RUN playwright install --with-deps chromium
 
-# COPY ./src/load-generator/locustfile.py .
-# COPY ./src/load-generator/people.json .
-COPY ./dynatrace/locustfile.py .
-COPY ./dynatrace/people.json .
+COPY ./dynatrace/load-generator/src/ .
 
 ENTRYPOINT ["locust", "--skip-log-setup"]
