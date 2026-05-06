@@ -7,23 +7,24 @@ import random
 from locust_plugins.users.playwright import PageWithRetry
 from playwright.async_api import Route, Request
 
-from config import PAGE_WAIT_UNTIL
+from config import PAGE_WAIT_UNTIL, SYNTHETIC_REQUEST_ENABLED
 
 
 async def inject_headers(
     route: Route, request: Request, spoofed_ip: str, user_agent: str
 ):
     """Inject X-Forwarded-For for geolocation simulation, a real browser User-Agent
-    to avoid headless bot detection, and synthetic_request=true in the W3C baggage
-    header so the frontend SSR flags the session correctly."""
+    to avoid headless bot detection, and, when SYNTHETIC_REQUEST_ENABLED is set,
+    synthetic_request=true in the W3C baggage header so the frontend SSR flags the
+    session correctly. Set SYNTHETIC_REQUEST_ENABLED=false on HTTPS deployments where
+    the internal collector URL is unreachable from the browser (Mixed Content)."""
     existing_baggage = request.headers.get("baggage", "")
+    extra_baggage = "synthetic_request=true" if SYNTHETIC_REQUEST_ENABLED else ""
     headers = {
         **request.headers,
         "X-Forwarded-For": spoofed_ip,
         "User-Agent": user_agent,
-        "baggage": ", ".join(
-            filter(None, (existing_baggage, "synthetic_request=true"))
-        ),
+        "baggage": ", ".join(filter(None, (existing_baggage, extra_baggage))),
     }
     await route.continue_(headers=headers)
 
