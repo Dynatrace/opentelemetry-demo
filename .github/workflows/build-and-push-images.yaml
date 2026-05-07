@@ -56,10 +56,10 @@ jobs:
         if: ${{ inputs.push }}
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
       - name: Build images
-        run: DEMO_VERSION="${{ inputs.version }}" docker compose --env-file .env --env-file .env.override build --build-arg GIT_COMMIT="$(git rev-parse HEAD)" --build-arg GIT_ORIGIN="$(git config --get remote.origin.url)"
+        run: DEMO_VERSION="$VERSION" docker compose --env-file .env --env-file .env.override build --build-arg GIT_COMMIT="$(git rev-parse HEAD)" --build-arg GIT_ORIGIN="$(git config --get remote.origin.url)"
       - name: List images
         run: docker image ls
       - name: Push images
-        if: ${{ inputs.push }}
-        run: DEMO_VERSION="${{ inputs.version }}" docker compose --env-file .env --env-file .env.override push
+        run: DEMO_VERSION="$VERSION" docker compose --env-file .env --env-file .env.override push

@@ -4,8 +4,9 @@ name: "Build and Publish"
 
 on:
   push:
-    branches-ignore:
-      - "main"
+    tags:
+      - wheeler*
+      - mchenry*
 
 permissions:
   contents: read
