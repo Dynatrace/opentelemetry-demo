@@ -2,10 +2,12 @@
     <PropertyGroup>
         <NuGetAudit>true</NuGetAudit>
         <NuGetAuditMode>all</NuGetAuditMode>
-        <NuGetAuditLevel>low</NuGetAuditLevel>
+        <NuGetAuditLevel>high</NuGetAuditLevel>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)'=='Release'">
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <!-- Suppress moderate severity NuGet vulnerability warnings for transitive OTel dependencies -->
+        <NoWarn>$(NoWarn);NU1902</NoWarn>
     </PropertyGroup>
 </Project>
