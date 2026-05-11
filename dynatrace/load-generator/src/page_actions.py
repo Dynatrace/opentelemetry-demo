@@ -5,6 +5,8 @@
 import logging
 import random
 
+from locust.exception import RescheduleTask
+
 from locust_plugins.users.playwright import PageWithRetry
 from playwright.async_api import Route, Request
 
@@ -75,6 +77,24 @@ async def wait_for_product_card(page: PageWithRetry, timeout: int = 15000):
 
 async def order_product(page: PageWithRetry):
     cards = await page.query_selector_all('[data-cy="product-card"]')
+    if not cards:
+        # No product cards found — the page likely did not render products due to
+        # a upstream error (e.g. 503 from product-catalog). Log the page URL and
+        # any visible error text to help diagnose, then reschedule the task.
+        url = page.url
+        error_text = None
+        try:
+            el = page.locator('[role="alert"], .error, [data-cy="error"]').first
+            if await el.is_visible(timeout=500):
+                error_text = await el.inner_text()
+        except Exception:
+            pass
+        log.warning(
+            "No product cards found on %s%s — rescheduling task",
+            url,
+            f": {error_text}" if error_text else "",
+        )
+        raise RescheduleTask()
     card = random.choice(cards)
     await card.scroll_into_view_if_needed()
     await page.wait_for_timeout(1000)
