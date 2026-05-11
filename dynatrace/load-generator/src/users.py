@@ -18,6 +18,7 @@ from config import (
     chromium_base_args,
     people,
     PAGE_WAIT_UNTIL,
+    BROWSER_HEADLESS,
 )
 from otel_setup import log
 from page_actions import (
@@ -86,7 +87,7 @@ def tracked_task(fn):
 
 class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
-    headless = True  # to use a headless browser, without a GUI
+    headless = BROWSER_HEADLESS
 
     async def _pwprep(self) -> None:
         if self.playwright is None:

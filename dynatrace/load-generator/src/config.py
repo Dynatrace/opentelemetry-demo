@@ -49,6 +49,10 @@ RUM_FLUSH_MS = int(os.environ.get("RUM_FLUSH_MS", "8000"))
 # internal collector URL is unreachable from the browser (Mixed Content).
 SYNTHETIC_REQUEST_ENABLED = os.environ.get("SYNTHETIC_REQUEST_ENABLED", "true").lower() == "true"
 
+# Run Chromium in headless mode by default. Set BROWSER_HEADLESS=false to open a
+# visible browser window (useful for local debugging).
+BROWSER_HEADLESS = os.environ.get("BROWSER_HEADLESS", "true").lower() == "true"
+
 # Pool of public IPs representing real cities across multiple continents.
 # Dynatrace resolves geolocation from the IP on RUM beacon requests (/rb_*).
 # Each virtual user picks one IP for its entire lifetime so all its sessions
