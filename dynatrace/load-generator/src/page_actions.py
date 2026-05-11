@@ -2,28 +2,34 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import random
+
+from locust.exception import RescheduleTask
 
 from locust_plugins.users.playwright import PageWithRetry
 from playwright.async_api import Route, Request
 
-from config import PAGE_WAIT_UNTIL
+from config import PAGE_WAIT_UNTIL, SYNTHETIC_REQUEST_ENABLED
+
+log = logging.getLogger("loadgen")
 
 
 async def inject_headers(
     route: Route, request: Request, spoofed_ip: str, user_agent: str
 ):
     """Inject X-Forwarded-For for geolocation simulation, a real browser User-Agent
-    to avoid headless bot detection, and synthetic_request=true in the W3C baggage
-    header so the frontend SSR flags the session correctly."""
+    to avoid headless bot detection, and, when SYNTHETIC_REQUEST_ENABLED is set,
+    synthetic_request=true in the W3C baggage header so the frontend SSR flags the
+    session correctly. Set SYNTHETIC_REQUEST_ENABLED=false on HTTPS deployments where
+    the internal collector URL is unreachable from the browser (Mixed Content)."""
     existing_baggage = request.headers.get("baggage", "")
+    extra_baggage = "synthetic_request=true" if SYNTHETIC_REQUEST_ENABLED else ""
     headers = {
         **request.headers,
         "X-Forwarded-For": spoofed_ip,
         "User-Agent": user_agent,
-        "baggage": ", ".join(
-            filter(None, (existing_baggage, "synthetic_request=true"))
-        ),
+        "baggage": ", ".join(filter(None, (existing_baggage, extra_baggage))),
     }
     await route.continue_(headers=headers)
 
@@ -70,7 +76,26 @@ async def wait_for_product_card(page: PageWithRetry, timeout: int = 15000):
         pass
 
 async def order_product(page: PageWithRetry):
+    await wait_for_product_card(page)
     cards = await page.query_selector_all('[data-cy="product-card"]')
+    if not cards:
+        # No product cards found — the page likely did not render products due to
+        # a upstream error (e.g. 503 from product-catalog). Log the page URL and
+        # any visible error text to help diagnose, then reschedule the task.
+        url = page.url
+        error_text = None
+        try:
+            el = page.locator('[role="alert"], .error, [data-cy="error"]').first
+            if await el.is_visible(timeout=500):
+                error_text = await el.inner_text()
+        except Exception:
+            pass
+        log.warning(
+            "No product cards found on %s%s — rescheduling task",
+            url,
+            f": {error_text}" if error_text else "",
+        )
+        raise RescheduleTask()
     card = random.choice(cards)
     await card.scroll_into_view_if_needed()
     await page.wait_for_timeout(1000)
@@ -124,5 +149,35 @@ async def complete_checkout(page: PageWithRetry, person: dict):
         str(person["creditCard"]["creditCardCvv"])
     )
     await page.wait_for_timeout(action_duration)
-    async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
-        await page.click('button:has-text("Place Order")')
+    try:
+        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=15000):
+            await page.click('button:has-text("Place Order")')
+    except Exception as e:
+        # Navigation did not occur within 30 s. Inspect the page for a visible reason.
+        reason = None
+        try:
+            # Browser HTML5 validation popups (e.g. "Please match the requested format")
+            # leave the form visible and set a validationMessage on the invalid field.
+            invalid = await page.evaluate("""() => {
+                const els = [...document.querySelectorAll('input:invalid, select:invalid, textarea:invalid')];
+                if (!els.length) return null;
+                return els.map(el => {
+                    const id = el.id || el.name || el.placeholder || el.tagName.toLowerCase();
+                    return `${id}: ${el.validationMessage || '(no message)'}`;
+                }).join('; ');
+            }""")
+            if invalid:
+                reason = f"form validation error — {invalid}"
+            else:
+                # Look for any visible error/alert text rendered by the app itself.
+                el = page.locator('[role="alert"], .error, [data-cy="error"]').first
+                if await el.is_visible(timeout=500):
+                    reason = f"page error — {await el.inner_text()}"
+        except Exception:
+            pass
+        log.warning(
+            "Place Order did not navigate to confirmation: %s: %s%s",
+            type(e).__name__,
+            e,
+            f" | reason: {reason} (expected, can be ignored)" if reason else "",
+        )
