@@ -111,14 +111,6 @@ async def order_product(page: PageWithRetry):
         await page.click('button:has-text("Add To Cart")')
 
 async def complete_checkout(page: PageWithRetry, person: dict):
-    # Navigate to the cart page from the post-"Add To Cart" confirmation screen
-    await page.click('a[data-cy="cart-icon"]', timeout=6000)
-    try:
-        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=8000):
-            await page.click('button:has-text("Go to Shopping Cart")', timeout=6000)
-    except Exception:
-        await page.wait_for_url("**/cart**", timeout=8000)
-
     # add a timeout between each action to make the replay look slightly better
     action_duration = 100
     await page.select_option(
