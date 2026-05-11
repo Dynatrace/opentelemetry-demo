@@ -128,9 +128,9 @@ async def complete_checkout(page: PageWithRetry, person: dict):
         str(person["creditCard"]["creditCardCvv"])
     )
     await page.wait_for_timeout(action_duration)
-    await page.click('button:has-text("Place Order")')
     try:
-        await page.wait_for_url("**/cart/checkout/**", timeout=5000)
+        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=30000):
+            await page.click('button:has-text("Place Order")')
     except Exception as e:
         # Navigation did not occur within 5 s. Inspect the page for a visible reason.
         reason = None
@@ -158,5 +158,5 @@ async def complete_checkout(page: PageWithRetry, person: dict):
             "Place Order did not navigate to confirmation: %s: %s%s",
             type(e).__name__,
             e,
-            f" | reason: {reason}" if reason else "",
+            f" | reason: {reason} (expected, can be ignored)" if reason else "",
         )
