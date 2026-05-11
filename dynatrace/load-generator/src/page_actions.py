@@ -76,6 +76,7 @@ async def wait_for_product_card(page: PageWithRetry, timeout: int = 15000):
         pass
 
 async def order_product(page: PageWithRetry):
+    await wait_for_product_card(page)
     cards = await page.query_selector_all('[data-cy="product-card"]')
     if not cards:
         # No product cards found — the page likely did not render products due to
@@ -110,6 +111,14 @@ async def order_product(page: PageWithRetry):
         await page.click('button:has-text("Add To Cart")')
 
 async def complete_checkout(page: PageWithRetry, person: dict):
+    # Navigate to the cart page from the post-"Add To Cart" confirmation screen
+    await page.click('a[data-cy="cart-icon"]', timeout=6000)
+    try:
+        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=8000):
+            await page.click('button:has-text("Go to Shopping Cart")', timeout=6000)
+    except Exception:
+        await page.wait_for_url("**/cart**", timeout=8000)
+
     # add a timeout between each action to make the replay look slightly better
     action_duration = 100
     await page.select_option(
@@ -152,7 +161,7 @@ async def complete_checkout(page: PageWithRetry, person: dict):
         async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=30000):
             await page.click('button:has-text("Place Order")')
     except Exception as e:
-        # Navigation did not occur within 5 s. Inspect the page for a visible reason.
+        # Navigation did not occur within 30 s. Inspect the page for a visible reason.
         reason = None
         try:
             # Browser HTML5 validation popups (e.g. "Please match the requested format")

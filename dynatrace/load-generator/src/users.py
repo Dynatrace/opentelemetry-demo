@@ -65,6 +65,12 @@ def tracked_task(fn):
                 user_agent=person["user_agent"]["ua"],
             ),
         )
+        # Override navigator.userAgent in JS so Dynatrace RUM reports the spoofed
+        # UA rather than the real headless Chromium string. add_init_script runs
+        # before any page script, so the override is in place before RUM loads.
+        await page.add_init_script(
+            f"Object.defineProperty(navigator, 'userAgent', {{get: () => {repr(person['user_agent']['ua'])}}});"
+        )
 
         start = time.monotonic()
         try:
@@ -78,6 +84,8 @@ def tracked_task(fn):
                 person["user_agent"]["label"],
                 duration,
             )
+        except RescheduleTask:
+            raise
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             raise RescheduleTask(e)
