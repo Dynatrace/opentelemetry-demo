@@ -150,7 +150,7 @@ async def complete_checkout(page: PageWithRetry, person: dict):
     )
     await page.wait_for_timeout(action_duration)
     try:
-        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=30000):
+        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=15000):
             await page.click('button:has-text("Place Order")')
     except Exception as e:
         # Navigation did not occur within 30 s. Inspect the page for a visible reason.
