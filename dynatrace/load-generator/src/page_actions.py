@@ -2,12 +2,15 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
 
+import logging
 import random
 
 from locust_plugins.users.playwright import PageWithRetry
 from playwright.async_api import Route, Request
 
 from config import PAGE_WAIT_UNTIL, SYNTHETIC_REQUEST_ENABLED
+
+log = logging.getLogger("loadgen")
 
 
 async def inject_headers(
@@ -125,5 +128,11 @@ async def complete_checkout(page: PageWithRetry, person: dict):
         str(person["creditCard"]["creditCardCvv"])
     )
     await page.wait_for_timeout(action_duration)
-    async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
-        await page.click('button:has-text("Place Order")')
+    try:
+        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
+            await page.click('button:has-text("Place Order")')
+    except Exception as e:
+        # Browser-side form validation (e.g. invalid credit card format) prevents
+        # submission and no navigation occurs — treat as a graceful no-op so the
+        # task completes without a timeout error.
+        log.warning("Place Order navigation did not complete: %s: %s", type(e).__name__, e)
