@@ -128,11 +128,35 @@ async def complete_checkout(page: PageWithRetry, person: dict):
         str(person["creditCard"]["creditCardCvv"])
     )
     await page.wait_for_timeout(action_duration)
+    await page.click('button:has-text("Place Order")')
     try:
-        async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
-            await page.click('button:has-text("Place Order")')
+        await page.wait_for_url("**/cart/checkout/**", timeout=5000)
     except Exception as e:
-        # Browser-side form validation (e.g. invalid credit card format) prevents
-        # submission and no navigation occurs — treat as a graceful no-op so the
-        # task completes without a timeout error.
-        log.warning("Place Order navigation did not complete: %s: %s", type(e).__name__, e)
+        # Navigation did not occur within 5 s. Inspect the page for a visible reason.
+        reason = None
+        try:
+            # Browser HTML5 validation popups (e.g. "Please match the requested format")
+            # leave the form visible and set a validationMessage on the invalid field.
+            invalid = await page.evaluate("""() => {
+                const els = [...document.querySelectorAll('input:invalid, select:invalid, textarea:invalid')];
+                if (!els.length) return null;
+                return els.map(el => {
+                    const id = el.id || el.name || el.placeholder || el.tagName.toLowerCase();
+                    return `${id}: ${el.validationMessage || '(no message)'}`;
+                }).join('; ');
+            }""")
+            if invalid:
+                reason = f"form validation error — {invalid}"
+            else:
+                # Look for any visible error/alert text rendered by the app itself.
+                el = page.locator('[role="alert"], .error, [data-cy="error"]').first
+                if await el.is_visible(timeout=500):
+                    reason = f"page error — {await el.inner_text()}"
+        except Exception:
+            pass
+        log.warning(
+            "Place Order did not navigate to confirmation: %s: %s%s",
+            type(e).__name__,
+            e,
+            f" | reason: {reason}" if reason else "",
+        )
