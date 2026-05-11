@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - "main"
+      - "feat/versioning-and-helm-chart-building"
     paths:
       - .github/**
       - kubernetes-manifests/**
@@ -93,5 +94,3 @@ jobs:
     with:
       version: ${{ needs.calc-version.outputs.version }}
       trigger-deploy: false
-      artifact-name: ${{ needs.build-push-astroshop.outputs.artifact-name }}
-      artifact-dir: ${{ needs.build-push-astroshop.outputs.artifact-dir }}
