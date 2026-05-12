@@ -43,42 +43,27 @@ jobs:
 
   build-push-astroshop:
     if: needs.calc-version.outputs.already-released == 'false'
+    needs: calc-version
+    uses: ./.github/workflows/build-and-push-images.yaml
+    with:
+      push: true
+      version: ${{ needs.calc-version.outputs.version }}
+    secrets: inherit
+
+  build-push-helm:
+    if: needs.calc-version.outputs.already-released == 'false'
     runs-on: ubuntu-24.04
     needs: calc-version
-    outputs:
-      artifact-dir: ${{ steps.build-and-push.outputs.artifact-dir }}
-      artifact-name: ${{ steps.build-and-push.outputs.artifact-name }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Login to Google Artifact Registry
-        run: |
-          echo "${{ secrets.GAR_CREDENTIALS }}" | \
-            docker login -u _json_key_base64 --password-stdin "${{ env.GAR_ADDRESS }}"
-
-      - name: Set application version
-        uses: ./.github/actions/set-version
-        with:
-          version: ${{ needs.calc-version.outputs.version }}
-
-      - name: Build and push astroshop to docker repository
-        id: build-and-push
-        uses: ./.github/actions/build-push-images
-        with:
-          push: true
-          push-latest: ${{ needs.calc-version.outputs.is-release }}
-          tag: ${{ needs.calc-version.outputs.version }}
-          registry: ${{ env.CONTAINER_REGISTRY }}
-          artifact-name: docker-compose
-          artifact-dir: ./build-artifacts/
+        uses: actions/checkout@v4
 
       - name: Build and push Helm chart
         uses: ./.github/actions/build-push-helm
         with:
           chart-path: ${{ env.HELM_CHART_PATH }}
           push: true
-          registry-url: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
+          registry-url: ${{ env.HELM_REGISTRY }}
           version: ${{ needs.calc-version.outputs.version }}
           credentials: ${{ secrets.GAR_CREDENTIALS }}
 
@@ -87,6 +72,7 @@ jobs:
     needs:
       - calc-version
       - build-push-astroshop
+      - build-push-helm
     permissions:
       contents: write
       actions: write
