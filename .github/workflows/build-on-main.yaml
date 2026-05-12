@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - "main"
-      - "feat/versioning-and-helm-chart-building"
     paths:
       - .github/**
       - kubernetes-manifests/**
