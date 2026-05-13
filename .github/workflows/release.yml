@@ -7,6 +7,9 @@ on:
     tags:
       - wheeler*
       - mchenry*
+      - lesko*
+      - le*
+      - stechly*
 
 permissions:
   contents: read
