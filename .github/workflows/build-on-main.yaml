@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - "main"
+      - "feat/versioning-and-helm-chart-building"
     paths:
       - .github/**
       - kubernetes-manifests/**
@@ -43,7 +44,7 @@ jobs:
   build-push-astroshop:
     if: needs.calc-version.outputs.already-released == 'false'
     needs: calc-version
-    uses: ./.github/workflows/build-and-push-images.yaml
+    uses: ./.github/actions/build-push-images
     with:
       push: true
       version: ${{ needs.calc-version.outputs.version }}
