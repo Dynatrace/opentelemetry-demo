@@ -44,11 +44,18 @@ jobs:
   build-push-astroshop:
     if: needs.calc-version.outputs.already-released == 'false'
     needs: calc-version
-    uses: ./.github/actions/build-push-images
-    with:
-      push: true
-      version: ${{ needs.calc-version.outputs.version }}
-    secrets: inherit
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and push Images
+        uses: ./.github/actions/build-push-images
+        env:
+          GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
+        with:
+          push: true
+          tag: ${{ needs.calc-version.outputs.version }}
 
   build-push-helm:
     if: needs.calc-version.outputs.already-released == 'false'

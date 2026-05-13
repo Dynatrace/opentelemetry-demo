@@ -57,8 +57,9 @@ runs:
         df -h
     - name: Retrieve GAR credentials
       if: ${{ inputs.push }}
+      shell: bash
       run: |
-        echo "${{ secrets.GAR_CREDENTIALS }}" |  docker login -u _json_key_base64 --password-stdin europe-docker.pkg.dev
+        echo "$GAR_CREDENTIALS" | docker login -u _json_key_base64 --password-stdin europe-docker.pkg.dev
     - name: Build Docker images
       id: build
       shell: bash
