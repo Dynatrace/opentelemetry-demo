@@ -47,7 +47,7 @@ jobs:
       services: ${{ steps.list.outputs.services }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: List buildable services
         id: list
@@ -65,7 +65,7 @@ jobs:
         service: ${{ fromJson(needs.list-services.outputs.services) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Free Disk Space
         run: |
@@ -92,7 +92,7 @@ jobs:
     needs: calc-version
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build and push Helm chart
         uses: ./.github/actions/build-push-helm
