@@ -30,7 +30,7 @@ runs:
       run: |
         CONFIG_FILE="/tmp/GitVersion.yml"
         cat > "$CONFIG_FILE" << 'EOF'
-        assembly-informational-format: "{MajorMinorPatch}-{PreReleaseLabel}-{ShortSha}"
+        assembly-informational-format: "{MajorMinorPatch}"
         label: "{BranchName:l}"
         major-version-bump-message: '\+semver:\s?(breaking|major)'
         minor-version-bump-message: '\+semver:\s?(feature|minor)'
@@ -77,8 +77,8 @@ runs:
           # If on tag, return that tag as current version
           VERSION="${{ steps.version.outputs.majorMinorPatch }}"
         else
-          # For other branches, use informational version
-          VERSION="${{ steps.version.outputs.informationalVersion }}"
+          # For other branches, use major.minor.patch
+          VERSION="${{ steps.version.outputs.majorMinorPatch }}"
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Final version: $VERSION"
