@@ -53,7 +53,7 @@ jobs:
         id: list
         uses: ./.github/actions/list-build-services
 
-  build-push-images:
+  build-push-image:
     if: needs.calc-version.outputs.already-released == 'false'
     needs:
       - calc-version
@@ -68,7 +68,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Build and push ${{ matrix.service }}
-        uses: ./.github/actions/build-push-images
+        uses: ./.github/actions/build-push-image
         env:
           GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
         with:
@@ -97,7 +97,7 @@ jobs:
     if: needs.calc-version.outputs.is-release == 'true'
     needs:
       - calc-version
-      - build-push-images
+      - build-push-image
       - build-push-helm
     permissions:
       contents: write
