@@ -1,15 +1,18 @@
-name: "Build and Push Docker Images"
-description: "Build Docker images using docker compose and optionally push to registry"
+name: "Build and Push Docker Image"
+description: "Build a single Docker image using docker buildx and optionally push to registry"
 inputs:
+  service:
+    description: "Service name to build (from docker-compose)"
+    required: true
   push:
-    description: "Whether to push images to registry"
+    description: "Whether to push image to registry"
     required: false
     default: "false"
   tag:
-    description: "Tag for all Docker images"
+    description: "Tag for the Docker image"
     required: true
   push-latest:
-    description: "Whether to also push images with 'latest' tag"
+    description: "Whether to also push image with 'latest' tag"
     required: false
     default: "false"
   registry:
@@ -20,106 +23,89 @@ inputs:
     description: "Path to docker compose file"
     required: false
     default: "docker-compose.yml"
-  artifact-dir:
-    description: "Directory to store build artifacts"
-    required: false
-  artifact-name:
-    description: "Name of the uploaded artifact"
-    required: false
-outputs:
-  images:
-    description: "List of built images"
-    value: ${{ steps.build.outputs.images }}
-  artifact-dir:
-    description: "Directory containing build artifacts"
-    value: ${{ steps.artifacts.outputs.artifact-dir }}
-  artifact-name:
-    description: "Name of the uploaded artifact"
-    value: ${{ inputs.artifact-name }}
 
 runs:
   using: composite
   steps:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-    - name: Free Disk Space Before Build
-      shell: bash
-      run: |
-        echo "Disk space before cleanup:"
-        df -h
-        sudo rm -rf /usr/local/.ghcup
-        sudo rm -rf /opt/hostedtoolcache/CodeQL
-        sudo rm -rf /usr/local/lib/android/sdk/ndk
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /opt/ghc
-        sudo rm -rf /usr/local/share/boost
-        sudo apt-get clean
-        echo "Disk space after cleanup:"
-        df -h
+
     - name: Retrieve GAR credentials
-      if: ${{ inputs.push }}
+      if: inputs.push == 'true'
       shell: bash
       run: |
         echo "$GAR_CREDENTIALS" | docker login -u _json_key_base64 --password-stdin europe-docker.pkg.dev
-    - name: Build Docker images
-      id: build
+
+    - name: Build and push image
       shell: bash
       env:
+        SERVICE: ${{ inputs.service }}
         REGISTRY: ${{ inputs.registry }}
         TAG: ${{ inputs.tag }}
+        PUSH: ${{ inputs.push }}
+        PUSH_LATEST: ${{ inputs.push-latest }}
+        COMPOSE_FILE: ${{ inputs.compose-file }}
       run: |
-        echo "Building images with tag: $TAG"
-        DEMO_VERSION="$TAG" docker compose --env-file .env --env-file .env.override build --build-arg GIT_COMMIT="$(git rev-parse HEAD)" --build-arg GIT_ORIGIN="$(git config --get remote.origin.url)"
+        echo "Building image for service: $SERVICE with tag: $TAG"
+        
+        # Source the env files to get all required variables
+        set -a
+        source .env
+        source .env.override
+        set +a
+        
+        # Override with our values
+        export DEMO_VERSION="$TAG"
+        export IMAGE_NAME="$REGISTRY"
+        
+        # Determine push flags
+        PUSH_FLAG=""
+        if [ "$PUSH" == "true" ]; then
+          PUSH_FLAG="--push"
+          echo "Image will be pushed to registry"
+        else
+          PUSH_FLAG="--load"
+          echo "Image will be loaded locally"
+        fi
+        
+        # Build the single service using docker buildx bake
+        # This allows us to use the compose file directly with buildx
+        docker buildx bake \
+          --file "$COMPOSE_FILE" \
+          --set "*.args.GIT_COMMIT=$(git rev-parse HEAD)" \
+          --set "*.args.GIT_ORIGIN=$(git config --get remote.origin.url)" \
+          $PUSH_FLAG \
+          "$SERVICE"
+        
+        echo "Successfully built $SERVICE with tag: $TAG"
 
-        # List built images
-        IMAGES=$(docker compose -f ${{ inputs.compose-file }} config --services | tr '\n' ',' | sed 's/,$//')
-        echo "images=$IMAGES" >> $GITHUB_OUTPUT
-        echo "Built images: $IMAGES"
-
-    - name: Push Docker images
-      if: inputs.push == 'true'
-      shell: bash
-      env:
-        REGISTRY: ${{ inputs.registry }}
-        TAG: ${{ inputs.tag }}
-      run: |
-        echo "Pushing images to registry..."
-        docker compose -f ${{ inputs.compose-file }} push
-        echo "Successfully pushed all images with tag: $TAG"
-
-    - name: Push Docker images with latest tag
+    - name: Push image with latest tag
       if: inputs.push == 'true' && inputs.push-latest == 'true'
       shell: bash
       env:
+        SERVICE: ${{ inputs.service }}
         REGISTRY: ${{ inputs.registry }}
         TAG: ${{ inputs.tag }}
+        COMPOSE_FILE: ${{ inputs.compose-file }}
       run: |
-        echo "Pushing images with latest to registry..."
-        images=$(docker compose -f ${{ inputs.compose-file }} config --images)
-        for image in $images; do
-          image_name=$(echo "$image" | cut -d: -f1)
-          docker tag "${image}" "${image_name}":latest
-          docker push "${image_name}":latest
-        done
-        echo "Push $TAG as new latest completed."
-
-    - name: Prepare build artifacts
-      if: inputs.artifact-dir
-      id: artifacts
-      shell: bash
-      env:
-        TAG: ${{ inputs.tag }}
-        REGISTRY: ${{ inputs.registry }}
-        ARTIFACT_DIR: ${{ inputs.artifact-dir }}
-      run: |
-        mkdir -p $ARTIFACT_DIR
-        envsubst < docker-compose.yaml > $ARTIFACT_DIR/compose.yaml
-        echo "artifact-dir=$ARTIFACT_DIR" >> $GITHUB_OUTPUT
-
-    - name: Upload build artifacts
-      if: inputs.artifact-dir
-      uses: actions/upload-artifact@v6
-      with:
-        name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.artifact-dir }}
-        if-no-files-found: error
+        echo "Building and pushing $SERVICE with latest tag..."
+        
+        # Source the env files to get all required variables
+        set -a
+        source .env
+        source .env.override
+        set +a
+        
+        # Override with latest tag
+        export DEMO_VERSION="latest"
+        export IMAGE_NAME="$REGISTRY"
+        
+        # Build and push with latest tag
+        docker buildx bake \
+          --file "$COMPOSE_FILE" \
+          --set "*.args.GIT_COMMIT=$(git rev-parse HEAD)" \
+          --set "*.args.GIT_ORIGIN=$(git config --get remote.origin.url)" \
+          --push \
+          "$SERVICE"
+        
+        echo "Successfully pushed $SERVICE with latest tag"
