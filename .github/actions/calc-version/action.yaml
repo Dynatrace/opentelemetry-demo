@@ -78,7 +78,7 @@ runs:
           VERSION="${{ steps.version.outputs.majorMinorPatch }}"
         else
           # For other branches, use major.minor.patch
-          VERSION="${{ steps.version.outputs.majorMinorPatch }}"
+          VERSION="${{ steps.version.outputs.informationalVersion }}"
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Final version: $VERSION"
