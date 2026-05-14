@@ -55,7 +55,7 @@ jobs:
           GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
         with:
           push: true
-          version: ${{ needs.calc-version.outputs.version }}
+          tag: ${{ needs.calc-version.outputs.version }}
 
   build-push-helm:
     if: needs.calc-version.outputs.already-released == 'false'
