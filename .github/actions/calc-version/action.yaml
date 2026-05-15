@@ -30,7 +30,7 @@ runs:
       run: |
         CONFIG_FILE="/tmp/GitVersion.yml"
         cat > "$CONFIG_FILE" << 'EOF'
-        assembly-informational-format: "{MajorMinorPatch}"
+        assembly-informational-format: "{MajorMinorPatch}-{PreReleaseLabel}-{ShortSha}"
         label: "{BranchName:l}"
         major-version-bump-message: '\+semver:\s?(breaking|major)'
         minor-version-bump-message: '\+semver:\s?(feature|minor)'
