@@ -8,6 +8,7 @@ on:
       - kubernetes-manifests/**
       - src/**
       - charts/**
+      - dynatrace/**
   workflow_dispatch:
 
   workflow_call:
