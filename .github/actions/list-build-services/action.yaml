@@ -1,0 +1,36 @@
+name: "List Buildable Services"
+description: "List all services from docker-compose that have a build context"
+inputs:
+  compose-file:
+    description: "Path to docker compose file"
+    required: false
+    default: "docker-compose.yml"
+outputs:
+  services:
+    description: "JSON array of service names that have build contexts"
+    value: ${{ steps.list.outputs.services }}
+  count:
+    description: "Number of buildable services"
+    value: ${{ steps.list.outputs.count }}
+
+runs:
+  using: composite
+  steps:
+    - name: List services with build context
+      id: list
+      shell: bash
+      run: |
+        # Extract services that have a build: section from docker-compose
+        # This uses awk to track service names and identify those with build contexts
+        SERVICES=$(awk '/^  [a-z][a-z0-9-]*:/{service=$1} /^    build:/{print service}' ${{ inputs.compose-file }} | tr -d ':' | sort -u)
+        
+        # Convert to JSON array
+        JSON_ARRAY=$(echo "$SERVICES" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+        
+        COUNT=$(echo "$SERVICES" | wc -l)
+        
+        echo "Found $COUNT buildable services"
+        echo "Services: $JSON_ARRAY"
+        
+        echo "services=$JSON_ARRAY" >> $GITHUB_OUTPUT
+        echo "count=$COUNT" >> $GITHUB_OUTPUT

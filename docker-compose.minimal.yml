@@ -25,8 +25,6 @@ services:
     build:
       context: ./
       dockerfile: ${AD_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-ad
       args:
         OTEL_JAVA_AGENT_VERSION: ${OTEL_JAVA_AGENT_VERSION}
     deploy:
@@ -59,8 +57,6 @@ services:
     build:
       context: ./
       dockerfile: ${CART_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-cart
     deploy:
       resources:
         limits:
@@ -90,8 +86,6 @@ services:
     build:
       context: ./
       dockerfile: ${CHECKOUT_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-checkout
     deploy:
       resources:
         limits:
@@ -138,8 +132,6 @@ services:
     build:
       context: ./
       dockerfile: ${CURRENCY_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-currency
       args:
         OPENTELEMETRY_CPP_VERSION: ${OPENTELEMETRY_CPP_VERSION}
     deploy:
@@ -167,8 +159,6 @@ services:
     container_name: email
     build:
       context: ./src/email
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-email
     deploy:
       resources:
         limits:
@@ -197,8 +187,6 @@ services:
     build:
       context: ./
       dockerfile: ${FRONTEND_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-frontend
     deploy:
       resources:
         limits:
@@ -304,8 +292,6 @@ services:
     build:
       context: ./
       dockerfile: ${IMAGE_PROVIDER_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-image-provider
     deploy:
       resources:
         limits:
@@ -331,8 +317,6 @@ services:
     build:
       context: ./
       dockerfile: ${LOAD_GENERATOR_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-load-generator
     deploy:
       resources:
         limits:
@@ -370,8 +354,7 @@ services:
     build:
       context: ./
       dockerfile: ${PAYMENT_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-payment
+
     deploy:
       resources:
         limits:
@@ -411,8 +394,6 @@ services:
     build:
       context: ./
       dockerfile: ${PRODUCT_CATALOG_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-product-catalog
     deploy:
       resources:
         limits:
@@ -446,8 +427,6 @@ services:
     build:
       context: ./
       dockerfile: ${QUOTE_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-quote
     deploy:
       resources:
         limits:
@@ -475,8 +454,6 @@ services:
     build:
       context: ./
       dockerfile: ${RECOMMENDATION_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-recommendation
     deploy:
       resources:
         limits:
@@ -509,8 +486,6 @@ services:
     build:
       context: ./
       dockerfile: ${SHIPPING_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-shipping
     deploy:
       resources:
         limits:
@@ -698,8 +673,6 @@ services:
     build:
       context: ./
       dockerfile: ${OPENSEARCH_DOCKERFILE}
-      cache_from:
-        - ${IMAGE_NAME}:${IMAGE_VERSION}-opensearch
     deploy:
       resources:
         limits:
