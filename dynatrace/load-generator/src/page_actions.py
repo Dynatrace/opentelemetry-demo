@@ -57,23 +57,27 @@ async def wait_for_product_card(page: PageWithRetry, timeout: int = 15000):
     """Wait until at least one product-card image has loaded.
 
     ProductCard sets its image as a CSS background via a styled-components class
-    (not an inline style), so getComputedStyle is required. The function resolves
-    as soon as the first card's computed backgroundImage is set to any non-none
-    value, which happens once the blob URL is injected into the generated class.
+    (not an inline style), so getComputedStyle is required. The background can be
+    set on a descendant of the product-card element, not necessarily the card
+    wrapper itself.
     """
     try:
         await page.wait_for_function(
             """() => {
                 const els = document.querySelectorAll('[data-cy="product-card"]');
                 return Array.from(els).some(el => {
-                    const bg = getComputedStyle(el).backgroundImage;
-                    return bg && bg !== 'none' && bg !== '';
+                    const candidates = [el, ...el.querySelectorAll('*')];
+                    return candidates.some(candidate => {
+                        const bg = getComputedStyle(candidate).backgroundImage;
+                        return bg && bg !== 'none' && bg !== '';
+                    });
                 });
             }""",
             timeout=timeout,
         )
     except Exception:
         pass
+
 
 async def order_product(page: PageWithRetry):
     await wait_for_product_card(page)
@@ -110,6 +114,7 @@ async def order_product(page: PageWithRetry):
     async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL):
         await page.click('button:has-text("Add To Cart")')
 
+
 async def complete_checkout(page: PageWithRetry, person: dict):
     # add a timeout between each action to make the replay look slightly better
     action_duration = 100
@@ -119,9 +124,7 @@ async def complete_checkout(page: PageWithRetry, person: dict):
     await page.wait_for_timeout(action_duration)
     await page.locator("input#email").fill(person["email"])
     await page.wait_for_timeout(action_duration)
-    await page.locator("input#street_address").fill(
-        person["address"]["streetAddress"]
-    )
+    await page.locator("input#street_address").fill(person["address"]["streetAddress"])
     await page.wait_for_timeout(action_duration)
     await page.locator("input#zip_code").fill(str(person["address"]["zipCode"]))
     await page.wait_for_timeout(action_duration)
@@ -153,7 +156,7 @@ async def complete_checkout(page: PageWithRetry, person: dict):
         async with page.expect_navigation(wait_until=PAGE_WAIT_UNTIL, timeout=15000):
             await page.click('button:has-text("Place Order")')
     except Exception as e:
-        # Navigation did not occur within 30 s. Inspect the page for a visible reason.
+        # Navigation did not occur within 15s. Inspect the page for a visible reason.
         reason = None
         try:
             # Browser HTML5 validation popups (e.g. "Please match the requested format")
