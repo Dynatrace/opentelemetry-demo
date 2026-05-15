@@ -52,7 +52,7 @@ runs:
         fi
         # Set default image.tag version in values.yaml
         cd ${{ inputs.chart-path }}
-        yq -i ".global.image.tag = \"$VERSION\"" values.yaml
+        yq -i ".opentelemetry-demo.default.image.tag = \"$VERSION\"" values.yaml
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         
     - name: Update Helm dependencies
