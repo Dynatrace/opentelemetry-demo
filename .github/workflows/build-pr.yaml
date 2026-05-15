@@ -1,0 +1,91 @@
+name: Build and push astroshop
+on:
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      - .github/**
+      - kubernetes-manifests/**
+      - src/**
+      - charts/**
+  workflow_dispatch:
+
+  workflow_call:
+    secrets:
+      GAR_CREDENTIALS:
+        required: true
+      KUBECONFIG:
+        required: true
+      OQR_CLIENT_ID:
+        required: true
+      OQR_CLIENT_SECRET:
+        required: true
+      OQR_URL:
+        required: true
+      SNYK_API_TOKEN:
+        required: true
+      SSH_PRIVATE_KEY:
+        required: true
+      SSO_URL:
+        required: true
+
+env:
+  CONTAINER_REGISTRY: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop
+  HELM_REGISTRY: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
+  HELM_CHART_PATH: charts/astroshop
+
+jobs:
+  calc-version:
+    uses: ./.github/workflows/reusable-calc-version.yaml
+
+  list-services:
+    runs-on: ubuntu-24.04
+    outputs:
+      services: ${{ steps.list.outputs.services }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: List buildable services
+        id: list
+        uses: ./.github/actions/list-build-services
+
+  build-push-image:
+    if: needs.calc-version.outputs.already-released == 'false'
+    needs:
+      - calc-version
+      - list-services
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.list-services.outputs.services) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build and push ${{ matrix.service }}
+        uses: ./.github/actions/build-push-image
+        env:
+          GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
+        with:
+          service: ${{ matrix.service }}
+          push: false
+          tag: ${{ needs.calc-version.outputs.version }}
+
+  build-push-helm:
+    if: needs.calc-version.outputs.already-released == 'false'
+    runs-on: ubuntu-24.04
+    needs: calc-version
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build and push Helm chart
+        uses: ./.github/actions/build-push-helm
+        with:
+          chart-path: ${{ env.HELM_CHART_PATH }}
+          push: false
+          registry-url: ${{ env.HELM_REGISTRY }}
+          version: ${{ needs.calc-version.outputs.version }}
+          credentials: ${{ secrets.GAR_CREDENTIALS }}
