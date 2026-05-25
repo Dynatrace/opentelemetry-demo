@@ -43,10 +43,10 @@ if PAGE_WAIT_UNTIL not in ("load", "domcontentloaded", "commit", "networkidle"):
 RUM_FLUSH_MS = int(os.environ.get("RUM_FLUSH_MS", "8000"))
 
 # When set to "true" (default), the W3C baggage header "synthetic_request=true" is
-# injected into every Playwright request. The frontend SSR uses this flag to route
-# browser-side OTLP traces directly to the internal collector instead of the public
-# proxy endpoint. Set SYNTHETIC_REQUEST_ENABLED=false on HTTPS deployments where the
-# internal collector URL is unreachable from the browser (Mixed Content).
+# added to every request via context.set_extra_http_headers(). The frontend SSR uses
+# this flag to route browser-side OTLP traces to the internal collector instead of the
+# public proxy endpoint. Set SYNTHETIC_REQUEST_ENABLED=false on HTTPS deployments where
+# the internal collector URL is unreachable from the browser (Mixed Content).
 SYNTHETIC_REQUEST_ENABLED = os.environ.get("SYNTHETIC_REQUEST_ENABLED", "true").lower() == "true"
 
 # Run Chromium in headless mode by default. Set BROWSER_HEADLESS=false to open a

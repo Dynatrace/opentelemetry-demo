@@ -19,11 +19,11 @@ from config import (
     people,
     PAGE_WAIT_UNTIL,
     BROWSER_HEADLESS,
+    SYNTHETIC_REQUEST_ENABLED,
 )
 from otel_setup import log
 from page_actions import (
     order_product,
-    inject_headers,
     complete_checkout,
     wait_for_banner,
 )
@@ -112,47 +112,47 @@ class WebsiteBrowserUser(PlaywrightUser):
             )
 
     async def _setup_context(self) -> None:
-        """Register per-context handlers on self.browser_context and self.page.
+        """Configure the BrowserContext and Page created by @pw for this task run.
 
         Called once per task run right after @pw has created a fresh
         BrowserContext and Page, before the task body executes.  Because the
         context is discarded at the end of each task run by @pw, there is no
-        accumulation of handlers across iterations.
+        accumulation across iterations.
 
-        - console listener: registered with page.once so it is automatically
-          removed after firing, preventing listener list growth within a single
-          page's lifetime.
-        - route handler: registered once on the *context* (not the page) so
-          that it covers all pages/frames opened during checkout.  The lambda
-          reads self._current_person at request time, so the persona can be
-          updated per task by tracked_task without re-registering the handler.
-        - UA init script: registered once on the context using a JS getter that
-          reads window.__locust_ua__, which tracked_task updates via
-          page.evaluate() before each navigation.  A single static script
-          string is stored by Playwright instead of one string per iteration.
+        Headers (X-Forwarded-For, User-Agent) are injected via
+        set_extra_http_headers(), which sends a single CDP command per context
+        and requires zero per-request callbacks.  This avoids the asyncio
+        Task / Future / Request object churn that context.route() causes for
+        every intercepted network request — which was the confirmed source of
+        unbounded Python-process memory growth.
+
+        navigator.userAgent is overridden via a single add_init_script() on the
+        context; the script reads window.__locust_ua__ which tracked_task sets
+        via page.evaluate() before the first navigation of each task run.
         """
-        # Log browser console warnings/errors.  page.once removes the handler
-        # automatically after the first matching event, avoiding listener
-        # accumulation within a page's lifetime.
+        # Log browser console warnings/errors once per page lifetime.
         self.page.on(
             "console",
             lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
         )
 
-        # Register the header-injection route handler once on the context so it
-        # applies to all requests made during this task run.  The lambda
-        # captures `self` (not the person dict directly) so it always reads the
-        # current persona from self._current_person at the time each request is
-        # intercepted — no re-registration needed when the persona changes.
-        await self.browser_context.route(
-            "**/*",
-            lambda route, request: inject_headers(
-                route,
-                request,
-                spoofed_ip=self._current_person["simulated_ip"],
-                user_agent=self._current_person["user_agent"]["ua"],
-            ),
-        )
+        # Inject geolocation and UA headers without route interception.
+        # set_extra_http_headers() sends one CDP setExtraHTTPHeaders command;
+        # it does not register any per-request callbacks and creates no
+        # asyncio Tasks, Futures, or Request objects per network request.
+        # X-Forwarded-For: browsers never send this header themselves, so
+        # there is nothing to merge — the value is always ours alone.
+        # User-Agent: we want to replace the HeadlessChrome UA entirely.
+        # baggage: synthetic_request=true flags SSR to route browser-side OTLP
+        # traces to the internal collector; disabled via SYNTHETIC_REQUEST_ENABLED=false
+        # on HTTPS deployments where the internal collector URL is unreachable (Mixed Content).
+        headers = {
+            "X-Forwarded-For": self._current_person["simulated_ip"],
+            "User-Agent": self._current_person["user_agent"]["ua"],
+        }
+        if SYNTHETIC_REQUEST_ENABLED:
+            headers["baggage"] = "synthetic_request=true"
+        await self.browser_context.set_extra_http_headers(headers)
 
         # Override navigator.userAgent in JS so Dynatrace RUM reports the
         # spoofed UA rather than the real headless Chromium string.  The getter
