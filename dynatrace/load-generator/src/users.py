@@ -34,11 +34,11 @@ def tracked_task(fn):
 
     Automatically:
     - Picks a random persona for this task run and stores it on self so that
-      the context-level route handler (registered once per BrowserContext in
-      _setup_context) can read the current persona without being re-registered
-      on every iteration.
-    - Updates window.__locust_ua__ so the init script (registered once per
-      BrowserContext) serves the correct User-Agent string for this task run.
+      _setup_context() can read it when setting extra HTTP headers.
+    - Calls _setup_context() to register the init script, set headers, and
+      attach the console listener — before the task body runs.
+    - Updates window.__locust_ua__ so the init script serves the correct
+      User-Agent string for this task run.
     - Generates a short task_id for log correlation.
     - Logs task start and completion (with duration in seconds).
     - Catches exceptions, prints the traceback, and raises RescheduleTask.
@@ -47,9 +47,8 @@ def tracked_task(fn):
     @functools.wraps(fn)
     async def wrapper(self, page: PageWithRetry):
         person = random.choice(people)
-        # Store on self so the route handler lambda (registered once per
-        # BrowserContext) can read the current persona at request time without
-        # needing to be re-registered for every task iteration.
+        # Store on self so _setup_context() can read the current persona
+        # when building the set_extra_http_headers() dict.
         self._current_person = person
 
         task_id = uuid.uuid4().hex[:8]
@@ -62,10 +61,17 @@ def tracked_task(fn):
             person["user_agent"]["label"],
         )
 
-        # Update the JS variable that the UA init script (installed once per
-        # context in _setup_context) reads via its getter.  evaluate() runs in
-        # the current frame and is not stored anywhere, so there is no
-        # accumulation.
+        # Configure the fresh BrowserContext and Page that @pw just created:
+        # installs the navigator.userAgent init script on the context, sets
+        # extra HTTP headers, and registers the console listener.  Must run
+        # before any navigation so that add_init_script() fires on the first
+        # page.goto() call inside the task body.
+        await self._setup_context()
+
+        # Update the JS variable that the UA init script (installed above by
+        # _setup_context) reads via its getter.  Must run after _setup_context
+        # (which registers the init script) and before the first navigation
+        # (which executes it).
         await page.evaluate(
             f"window.__locust_ua__ = {repr(person['user_agent']['ua'])};"
         )
@@ -95,10 +101,8 @@ class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = BROWSER_HEADLESS
 
-    # Holds the persona chosen for the current task run.  The route handler and
-    # console listener are registered once per BrowserContext (in
-    # _setup_context) and read this attribute at call time, so they never need
-    # to be re-registered across iterations.
+    # Holds the persona chosen for the current task run so _setup_context()
+    # can read it when building the set_extra_http_headers() dict.
     _current_person: dict = None
 
     async def _pwprep(self) -> None:
@@ -114,12 +118,13 @@ class WebsiteBrowserUser(PlaywrightUser):
     async def _setup_context(self) -> None:
         """Configure the BrowserContext and Page created by @pw for this task run.
 
-        Called once per task run right after @pw has created a fresh
-        BrowserContext and Page, before the task body executes.  Because the
-        context is discarded at the end of each task run by @pw, there is no
-        accumulation across iterations.
+        Called by tracked_task's wrapper before the task body executes, after
+        @pw has created a fresh BrowserContext and Page and the persona has been
+        chosen.  Ordering guarantee: _setup_context() runs before page.evaluate()
+        (which sets window.__locust_ua__) and before the first page.goto(), so
+        add_init_script() is always registered before the first navigation fires it.
 
-        Headers (X-Forwarded-For, User-Agent) are injected via
+        Headers (X-Forwarded-For, User-Agent, optionally baggage) are injected via
         set_extra_http_headers(), which sends a single CDP command per context
         and requires zero per-request callbacks.  This avoids the asyncio
         Task / Future / Request object churn that context.route() causes for
@@ -128,7 +133,7 @@ class WebsiteBrowserUser(PlaywrightUser):
 
         navigator.userAgent is overridden via a single add_init_script() on the
         context; the script reads window.__locust_ua__ which tracked_task sets
-        via page.evaluate() before the first navigation of each task run.
+        via page.evaluate() immediately after this method returns.
         """
         # Log browser console warnings/errors once per page lifetime.
         self.page.on(
@@ -169,11 +174,6 @@ class WebsiteBrowserUser(PlaywrightUser):
     @pw
     @tracked_task
     async def browse_and_checkout(self, page: PageWithRetry, person: dict):
-        # Set up context-level handlers once per task run, after @pw has
-        # created a fresh BrowserContext and Page and tracked_task has chosen
-        # the persona for this iteration.
-        await self._setup_context()
-
         # Navigate to homepage and wait for banner to let the LCP trigger
         await page.goto("/", wait_until=PAGE_WAIT_UNTIL)
         await wait_for_banner(page)
