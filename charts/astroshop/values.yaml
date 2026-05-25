@@ -249,10 +249,10 @@ opentelemetry-demo:
           value: "true"
       resources:
         requests:
-          cpu: "1"
+          cpu: 500m
           memory: 1Gi
         limits:
-          cpu: "2"
+          cpu: 1
           memory: 2Gi
     # ---------------------------------------------------
     payment:
