@@ -166,8 +166,11 @@ class WebsiteBrowserUser(PlaywrightUser):
         # single static script string is registered once per context instead of
         # one new string per iteration.
         await self.browser_context.add_init_script(
-            "Object.defineProperty(navigator, 'userAgent', "
-            "{get: () => window.__locust_ua__ || navigator.userAgent});"
+            "(function(){"
+            "var _orig=navigator.userAgent;"
+            "Object.defineProperty(navigator,'userAgent',"
+            "{get:function(){return window.__locust_ua__||_orig;}});"
+            "}());"
         )
 
     @task(1)
