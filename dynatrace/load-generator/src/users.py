@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import functools
+import json
 import random
 import sys
 import time
@@ -33,8 +34,7 @@ def tracked_task(fn):
     """Decorator for @pw task coroutines.
 
     Automatically:
-    - Picks a random persona for this task run and stores it on self so that
-      _setup_context() can read it when building the route handler and init script.
+    - Picks a random persona for this task run and passes it to _setup_context().
     - Calls _setup_context() to register the UA init script, set extra HTTP
       headers, and attach the console listener — before the task body runs.
     - Generates a short task_id for log correlation.
@@ -45,9 +45,6 @@ def tracked_task(fn):
     @functools.wraps(fn)
     async def wrapper(self, page: PageWithRetry):
         person = random.choice(people)
-        # Store on self so _setup_context() can read the current persona
-        # when building the set_extra_http_headers() dict.
-        self._current_person = person
 
         task_id = uuid.uuid4().hex[:8]
         name = fn.__name__
@@ -64,7 +61,7 @@ def tracked_task(fn):
         # extra HTTP headers, and registers the console listener.  Must run
         # before any navigation so that add_init_script() fires on the first
         # page.goto() call inside the task body.
-        await self._setup_context()
+        await self._setup_context(person)
 
         start = time.monotonic()
         try:
@@ -91,10 +88,6 @@ class WebsiteBrowserUser(PlaywrightUser):
     weight = 2
     headless = BROWSER_HEADLESS
 
-    # Holds the persona chosen for the current task run so _setup_context()
-    # can read it when building the set_extra_http_headers() dict.
-    _current_person: dict = None
-
     async def _pwprep(self) -> None:
         if self.playwright is None:
             self.playwright = await async_playwright().start()
@@ -105,14 +98,12 @@ class WebsiteBrowserUser(PlaywrightUser):
                 args=chromium_base_args,
             )
 
-    async def _setup_context(self) -> None:
+    async def _setup_context(self, person: dict) -> None:
         """Configure the BrowserContext and Page created by @pw for this task run.
 
         Called by tracked_task's wrapper before the task body executes, after
         @pw has created a fresh BrowserContext and Page and the persona has been
-        chosen.  Ordering guarantee: _setup_context() runs before page.evaluate()
-        (which sets window.__locust_ua__) and before the first page.goto(), so
-        add_init_script() is always registered before the first navigation fires it.
+        chosen.
 
         Headers are injected in two ways to avoid CORS preflight failures on
         cross-origin requests (e.g. Google Fonts):
@@ -125,11 +116,11 @@ class WebsiteBrowserUser(PlaywrightUser):
           requests (~50–60/page), reducing Task/Future churn ~8× vs the old
           "**/*" route handler that intercepted every request (~465/task).
 
-        navigator.userAgent is overridden via a single add_init_script() on the
-        context; the script reads window.__locust_ua__ which tracked_task sets
-        via page.evaluate() immediately after this method returns.
+        navigator.userAgent is overridden via add_init_script() with the UA
+        value embedded directly — it fires atomically on every new document
+        before any page script runs.
         """
-        # Log browser console warnings/errors once per page lifetime.
+        # Log browser console warnings/errors.
         self.page.on(
             "console",
             lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
@@ -139,7 +130,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         # it, so adding it via set_extra_http_headers() never triggers a CORS
         # preflight on cross-origin requests.
         await self.browser_context.set_extra_http_headers({
-            "User-Agent": self._current_person["user_agent"]["ua"],
+            "User-Agent": person["user_agent"]["ua"],
         })
 
         # X-Forwarded-For and baggage are NOT CORS-safelisted.  Sending them via
@@ -157,8 +148,7 @@ class WebsiteBrowserUser(PlaywrightUser):
         # requests/task.  This handler matches only same-origin requests
         # (~50–60/page), so the Task/Future churn is reduced ~8× vs the old code.
         # The remaining Tasks are short-lived and are reaped normally.
-        _ip = self._current_person["simulated_ip"]
-        _extra: dict = {"X-Forwarded-For": _ip}
+        _extra: dict = {"X-Forwarded-For": person["simulated_ip"]}
         if SYNTHETIC_REQUEST_ENABLED:
             _extra["baggage"] = "synthetic_request=true"
 
@@ -173,16 +163,12 @@ class WebsiteBrowserUser(PlaywrightUser):
         # Override navigator.userAgent in JS so Dynatrace RUM reports the
         # spoofed UA rather than the real headless Chromium string.
         # The UA value is embedded directly into the init script — it is baked
-        # in at context creation time (persona is already chosen by tracked_task
-        # before _setup_context is called) and fires atomically on every new
-        # document, before any page script runs.  This avoids the window.__locust_ua__
-        # indirection, which was unreliable because page.evaluate() sets a variable
-        # on the *current* document; after page.goto() the new document starts
-        # fresh and window.__locust_ua__ would be undefined again.
-        _ua_json = repr(self._current_person["user_agent"]["ua"])
+        # in at context creation time and fires atomically on every new document,
+        # before any page script runs.  json.dumps() produces a properly escaped
+        # JS string literal regardless of the UA value's content.
         await self.browser_context.add_init_script(
             f"(function(){{"
-            f"var _ua={_ua_json};"
+            f"var _ua={json.dumps(person['user_agent']['ua'])};"
             f"Object.defineProperty(navigator,'userAgent',{{get:function(){{return _ua;}}}});"
             f"}}());"
         )
