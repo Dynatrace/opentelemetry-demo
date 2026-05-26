@@ -252,7 +252,7 @@ opentelemetry-demo:
           cpu: 500m
           memory: 1Gi
         limits:
-          cpu: "1"
+          cpu: "2"
           memory: 2Gi
     # ---------------------------------------------------
     payment:
