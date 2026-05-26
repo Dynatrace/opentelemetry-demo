@@ -105,67 +105,55 @@ class WebsiteBrowserUser(PlaywrightUser):
         @pw has created a fresh BrowserContext and Page and the persona has been
         chosen.
 
-        Headers are injected in two ways to avoid CORS preflight failures on
-        cross-origin requests (e.g. Google Fonts):
-        - User-Agent: via set_extra_http_headers() — it is a CORS-safelisted
-          header so it never triggers a preflight on cross-origin requests.
-        - X-Forwarded-For + baggage: via a same-origin-scoped context.route()
-          handler — route.continue_() injects headers after the browser has
-          already dispatched the CORS preflight without them, so third-party
-          servers are never affected.  The handler only intercepts same-origin
-          requests (~50–60/page), reducing Task/Future churn ~8× vs the old
-          "**/*" route handler that intercepted every request (~465/task).
+        All headers are injected via set_extra_http_headers(), which sends a
+        single CDP setExtraHTTPHeaders command per context and creates zero
+        per-request Python callbacks, asyncio Tasks, or RouteHandler objects.
 
-        navigator.userAgent is overridden via add_init_script() with the UA
-        value embedded directly — it fires atomically on every new document
-        before any page script runs.
+        This is the only viable approach given the gevent↔asyncio bridge used by
+        locust-plugins.  context.route() causes pyee to call ensure_future() for
+        every intercepted request; those Tasks are never reaped by the asyncio
+        event loop while gevent holds the GIL, leading to unbounded growth of
+        Task, Future, RouteHandler, and BrowserContext objects.
+
+        Side effect: X-Forwarded-For is a non-CORS-safelisted header, so the
+        browser includes it in preflight requests to cross-origin servers
+        (e.g. Google Fonts).  Those servers reject the preflight with a CORS
+        error, causing font load failures.  This is cosmetic — the app renders
+        correctly without the font, and Dynatrace RUM is unaffected because all
+        RUM beacon (/rb_*) requests go to the same origin.  The console listener
+        below suppresses these known-harmless errors to keep logs clean.
         """
-        # Log browser console warnings/errors.
+        # Suppress known-harmless cross-origin CORS errors caused by
+        # X-Forwarded-For triggering preflight rejections on Google Fonts.
+        # The CORS block emits two console messages: one containing the domain
+        # name and one generic "Failed to load resource: net::ERR_FAILED" with
+        # no URL.  Both are suppressed; all other warnings/errors are printed.
+        _suppress = ("fonts.googleapis.com", "fonts.gstatic.com", "Failed to load resource")
         self.page.on(
             "console",
-            lambda msg: print(msg.text) if msg.type in ("warning", "error") else None,
+            lambda msg: (
+                print(msg.text)
+                if msg.type in ("warning", "error")
+                and not any(s in msg.text for s in _suppress)
+                else None
+            ),
         )
 
-        # User-Agent is a CORS-safelisted request header — browsers always send
-        # it, so adding it via set_extra_http_headers() never triggers a CORS
-        # preflight on cross-origin requests.
-        await self.browser_context.set_extra_http_headers({
+        # Inject all headers at context level via a single CDP command.
+        # No route handlers — no per-request Task/Future churn.
+        headers = {
+            "X-Forwarded-For": person["simulated_ip"],
             "User-Agent": person["user_agent"]["ua"],
-        })
-
-        # X-Forwarded-For and baggage are NOT CORS-safelisted.  Sending them via
-        # set_extra_http_headers() causes the browser to include them in CORS
-        # preflight requests to cross-origin servers (e.g. Google Fonts), which
-        # reject the preflight because they don't whitelist these headers.
-        # Unlike set_extra_http_headers(), Playwright's route.continue_() injects
-        # headers after the browser has already committed to the request — CORS
-        # preflight for cross-origin requests has already been sent without these
-        # headers, so third-party servers are unaffected.
-        # We therefore use a same-origin-scoped route handler for these two headers
-        # only, keeping cross-origin requests completely unmodified.
-        #
-        # Memory-leak risk: the original leak was route("**/*") intercepting ~465
-        # requests/task.  This handler matches only same-origin requests
-        # (~50–60/page), so the Task/Future churn is reduced ~8× vs the old code.
-        # The remaining Tasks are short-lived and are reaped normally.
-        _extra: dict = {"X-Forwarded-For": person["simulated_ip"]}
+        }
         if SYNTHETIC_REQUEST_ENABLED:
-            _extra["baggage"] = "synthetic_request=true"
-
-        async def _inject_same_origin(route, request):
-            await route.continue_(headers={**request.headers, **_extra})
-
-        await self.browser_context.route(
-            self.host.rstrip("/") + "/**",
-            _inject_same_origin,
-        )
+            headers["baggage"] = "synthetic_request=true"
+        await self.browser_context.set_extra_http_headers(headers)
 
         # Override navigator.userAgent in JS so Dynatrace RUM reports the
         # spoofed UA rather than the real headless Chromium string.
-        # The UA value is embedded directly into the init script — it is baked
-        # in at context creation time and fires atomically on every new document,
-        # before any page script runs.  json.dumps() produces a properly escaped
-        # JS string literal regardless of the UA value's content.
+        # The UA value is embedded directly into the init script — it fires
+        # atomically on every new document before any page script runs.
+        # json.dumps() produces a properly escaped JS string literal.
         await self.browser_context.add_init_script(
             f"(function(){{"
             f"var _ua={json.dumps(person['user_agent']['ua'])};"
