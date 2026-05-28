@@ -249,11 +249,11 @@ opentelemetry-demo:
           value: "true"
       resources:
         requests:
-          cpu: "1"
-          memory: 2.5Gi
+          cpu: 500m
+          memory: 1Gi
         limits:
           cpu: "2"
-          memory: 2.5Gi
+          memory: 2Gi
     # ---------------------------------------------------
     payment:
       podAnnotations:

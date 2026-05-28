@@ -9,6 +9,7 @@ from opentelemetry import trace
 from opentelemetry.metrics import set_meter_provider
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics.view import View
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
@@ -60,7 +61,24 @@ log.addHandler(_otlp_handler)  # also forward to OTLP
 # Metrics
 # ---------------------------------------------------------------------------
 _metric_exporter = OTLPMetricExporter(insecure=True)
-set_meter_provider(MeterProvider([PeriodicExportingMetricReader(_metric_exporter)]))
+# Drop all attributes from every metric emitted by SystemMetricsInstrumentor.
+# Without this the OTel SDK retains one _AttributesAggregation entry per unique
+# attribute-set (per-CPU, per-disk-device, per-network-interface, per-state…)
+# for the entire lifetime of the MeterProvider — confirmed ~50 MB/h RSS growth.
+#
+# The wildcard matches every instrument registered against this MeterProvider.
+# We do not need per-CPU/device breakdown in any dashboard, so collapsing to a
+# single unlabelled bucket per metric name is acceptable.
+#
+# NOTE: the previous fix used an explicit name list which was incomplete —
+# it missed process.* instruments and used wrong names (e.g. "dropped.packets"
+# instead of the actual "dropped_packets").  A wildcard is both simpler and
+# future-proof against instrumentation library updates.
+_drop_all_attrs = View(instrument_name="*", attribute_keys=set())
+set_meter_provider(MeterProvider(
+    [PeriodicExportingMetricReader(_metric_exporter)],
+    views=[_drop_all_attrs],
+))
 
 # ---------------------------------------------------------------------------
 # Traces
