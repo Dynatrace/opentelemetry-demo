@@ -61,39 +61,23 @@ log.addHandler(_otlp_handler)  # also forward to OTLP
 # Metrics
 # ---------------------------------------------------------------------------
 _metric_exporter = OTLPMetricExporter(insecure=True)
-# Collapse all system/runtime metric attribute combinations into a single
-# bucket per metric name.  Without this, the OTel SDK retains a separate
-# _AttributesAggregation entry for every unique label-set it observes
-# (e.g. per-CPU-core, per-disk-device, per-network-interface, per-state).
-# These accumulate for the lifetime of the MeterProvider and are the
-# confirmed source of ~50 MB/h RSS growth in the load-generator process.
-_cardinality_views = [
-    View(instrument_name=name, attribute_keys=set())
-    for name in (
-        "system.cpu.time",
-        "system.cpu.utilization",
-        "system.disk.io",
-        "system.disk.operations",
-        "system.disk.time",
-        "system.filesystem.usage",
-        "system.filesystem.utilization",
-        "system.memory.usage",
-        "system.memory.utilization",
-        "system.network.io",
-        "system.network.errors",
-        "system.network.packets",
-        "system.network.dropped.packets",
-        "system.network.connections",
-        "system.swap.usage",
-        "system.swap.utilization",
-        "process.runtime.cpython.cpu_time",
-        "process.runtime.cpython.memory",
-        "process.runtime.cpython.gc_count",
-    )
-]
+# Drop all attributes from every metric emitted by SystemMetricsInstrumentor.
+# Without this the OTel SDK retains one _AttributesAggregation entry per unique
+# attribute-set (per-CPU, per-disk-device, per-network-interface, per-state…)
+# for the entire lifetime of the MeterProvider — confirmed ~50 MB/h RSS growth.
+#
+# The wildcard matches every instrument registered against this MeterProvider.
+# We do not need per-CPU/device breakdown in any dashboard, so collapsing to a
+# single unlabelled bucket per metric name is acceptable.
+#
+# NOTE: the previous fix used an explicit name list which was incomplete —
+# it missed process.* instruments and used wrong names (e.g. "dropped.packets"
+# instead of the actual "dropped_packets").  A wildcard is both simpler and
+# future-proof against instrumentation library updates.
+_drop_all_attrs = View(instrument_name="*", attribute_keys=set())
 set_meter_provider(MeterProvider(
     [PeriodicExportingMetricReader(_metric_exporter)],
-    views=_cardinality_views,
+    views=[_drop_all_attrs],
 ))
 
 # ---------------------------------------------------------------------------
