@@ -25,9 +25,10 @@ export interface IFormData {
 
 interface IProps {
   onSubmit(formData: IFormData): void;
+  error?: { message: string; stack?: string } | null;
 }
 
-const CheckoutForm = ({ onSubmit }: IProps) => {
+const CheckoutForm = ({ onSubmit, error }: IProps) => {
   const [
     {
       email,
@@ -189,6 +190,16 @@ const CheckoutForm = ({ onSubmit }: IProps) => {
         />
       </S.CardRow>
 
+      {error && (
+        <S.ErrorWrapper>
+          <S.ErrorHeading>Uh, oh!</S.ErrorHeading>
+          <S.ErrorSubtitle>Something has failed. Below are some details for debugging.</S.ErrorSubtitle>
+          <S.ErrorMessage>
+            <div>{error.message}</div>
+            {error.stack && <S.ErrorStack>{error.stack}</S.ErrorStack>}
+          </S.ErrorMessage>
+        </S.ErrorWrapper>
+      )}
       <S.SubmitContainer>
         <Link href="/">
           <S.CartButton $type="secondary">Continue Shopping</S.CartButton>
