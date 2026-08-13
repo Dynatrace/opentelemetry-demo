@@ -57,3 +57,30 @@ export const EmptyCartButton = styled(Button)`
     width: inherit;
   }
 `;
+
+export const ErrorWrapper = styled.div`
+  margin-bottom: 16px;
+`;
+
+export const ErrorHeading = styled.h1`
+  margin: 8px 0 4px;
+`;
+
+export const ErrorSubtitle = styled.p`
+  margin: 0 0 12px;
+  color: ${({ theme }) => theme.colors.textLightGray};
+`;
+
+export const ErrorMessage = styled.div`
+  color: ${({ theme }) => theme.colors.otelRed};
+  font-size: 1.1rem;
+`;
+
+export const ErrorStack = styled.pre`
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  opacity: 0.8;
+  color: ${({ theme }) => theme.colors.otelRed};
+`;

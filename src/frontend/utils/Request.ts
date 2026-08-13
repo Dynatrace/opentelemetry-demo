@@ -25,10 +25,15 @@ const request = async <T>({
   });
 
   const responseText = await response.text();
+  const parsed = responseText ? JSON.parse(responseText) : undefined;
 
-  if (!!responseText) return JSON.parse(responseText);
+  if (!response.ok) {
+    const err = new Error(parsed?.error ?? `Request failed with status ${response.status}`);
+    if (parsed?.stack) err.stack = parsed.stack;
+    throw err;
+  }
 
-  return undefined as unknown as T;
+  return parsed ?? (undefined as unknown as T);
 };
 
 export default request;

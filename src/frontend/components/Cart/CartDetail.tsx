@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useRouter } from 'next/router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import CartItems from '../CartItems';
 import CheckoutForm from '../CheckoutForm';
 import { IFormData } from '../CheckoutForm/CheckoutForm';
@@ -21,6 +21,7 @@ const CartDetail = () => {
   } = useCart();
   const { selectedCurrency } = useCurrency();
   const { push } = useRouter();
+  const [orderError, setOrderError] = useState<{ message: string; stack?: string } | null>(null);
 
   const onPlaceOrder = useCallback(
     async ({
@@ -35,29 +36,34 @@ const CartDetail = () => {
       creditCardExpirationYear,
       creditCardNumber,
     }: IFormData) => {
-      const order = await placeOrder({
-        userId,
-        email,
-        address: {
-          streetAddress,
-          state,
-          country,
-          city,
-          zipCode,
-        },
-        userCurrency: selectedCurrency,
-        creditCard: {
-          creditCardCvv,
-          creditCardExpirationMonth,
-          creditCardExpirationYear,
-          creditCardNumber,
-        },
-      });
+      try {
+        setOrderError(null);
+        const order = await placeOrder({
+          userId,
+          email,
+          address: {
+            streetAddress,
+            state,
+            country,
+            city,
+            zipCode,
+          },
+          userCurrency: selectedCurrency,
+          creditCard: {
+            creditCardCvv,
+            creditCardExpirationMonth,
+            creditCardExpirationYear,
+            creditCardNumber,
+          },
+        });
 
-      push({
-        pathname: `/cart/checkout/${order.orderId}`,
-        query: { order: JSON.stringify(order) },
-      });
+        push({
+          pathname: `/cart/checkout/${order.orderId}`,
+          query: { order: JSON.stringify(order) },
+        });
+      } catch (e: any) {
+        setOrderError({ message: e.message ?? 'Something went wrong placing your order.', stack: e.stack });
+      }
     },
     [placeOrder, push, selectedCurrency]
   );
@@ -73,7 +79,7 @@ const CartDetail = () => {
         </S.Header>
         <CartItems productList={items} />
       </div>
-      <CheckoutForm onSubmit={onPlaceOrder} />
+      <CheckoutForm onSubmit={onPlaceOrder} error={orderError} />
     </S.Container>
   );
 };

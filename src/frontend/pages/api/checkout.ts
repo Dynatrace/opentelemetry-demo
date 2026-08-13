@@ -35,7 +35,7 @@ const handler = async ({ method, body, query }: NextApiRequest, res: NextApiResp
 
         return res.status(200).json({ ...order, items: productList });
       } catch (error: any) {
-        throw `[${new Date().toISOString()}] ` + error.message;
+        return res.status(500).json({ error: error.message, stack: error.stack });
       }
     }
 
