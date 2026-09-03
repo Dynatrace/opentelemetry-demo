@@ -7,7 +7,7 @@ inputs:
   push:
     description: Whether to push the chart to registry
     required: false
-    default: 'false'
+    default: "false"
   registry-login-url:
     description: Google Registry login URL (e.g., oci://europe-docker.pkg.dev/project/helm-charts)
     required: false
@@ -53,9 +53,9 @@ runs:
         # Set default image.tag version in values.yaml
         cd ${{ inputs.chart-path }}
         yq -i ".opentelemetry-demo.default.image.tag = \"$VERSION\"" values.yaml
-        sed -i "s/TAG-/${VERSION}-/g" values.yaml
+        yq -i '(.opentelemetry-demo.components.*.envOverrides[] | select(.name == "DT_RELEASE_VERSION")).value |= sub("TAG", "'"$VERSION"'")' values.yaml
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        
+
     - name: Update Helm dependencies
       shell: bash
       run: helm dependency update ${{ inputs.chart-path }}
@@ -71,7 +71,7 @@ runs:
         helm package ${{ inputs.chart-path }} \
           --version ${{ steps.set-version.outputs.version }} \
           --app-version ${{ steps.set-version.outputs.version }}
-        
+
         CHART_NAME=$(ls -1 *.tgz | head -n1)
         echo "chart-name=$CHART_NAME" >> $GITHUB_OUTPUT
 
