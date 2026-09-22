@@ -60,6 +60,8 @@ opentelemetry-demo:
           value: "console,otlp" # 'console', 'none', 'otlp'
         - name: DT_RELEASE_VERSION
           value: "TAG-accounting"
+        - name: DB_CONNECTION_STRING
+          value: Host=postgresql.astroshop.svc.cluster.local;Username=otelu;Password=otelp;Database=otel
       resources:
         requests:
           cpu: 100m
