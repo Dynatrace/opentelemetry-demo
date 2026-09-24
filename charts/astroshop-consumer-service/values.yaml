@@ -1,0 +1,10 @@
+image: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop-consumer-service
+kubectlImage: bitnamilegacy/kubectl
+kubectlImageTag: 1.33.4
+serviceAccountName: astroshop-consumer-service-account
+scaleDownCronExpression: "25 10 * * *"
+scaleUpCronExpression: "25 13 * * *"
+envs:
+  awsRegion:
+    name: AWS_REGION
+    value: "us-east-1"
