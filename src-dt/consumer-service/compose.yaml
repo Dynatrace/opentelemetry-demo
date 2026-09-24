@@ -1,0 +1,8 @@
+services:
+  consumer-service:
+    image: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop-consumer-service:1.5.1
+    build: .
+    env_file:
+      - .env.staging
+    volumes:
+      - ~/.aws/credentials:/home/node/.aws/credentials:ro

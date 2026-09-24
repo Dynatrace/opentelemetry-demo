@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.940.0",
+    "@aws-sdk/client-sqs": "^3.940.0",
+    "json-rules-engine-simplified": "https://europe-npm.pkg.dev/dynatrace-demoability/npm/json-rules-engine-simplified/-/json-rules-engine-simplified-0.2.4.tgz",
+    "winston": "^3.18.3"
+  },
+  "name": "customer-service",
+  "version": "1.0.0",
+  "description": "Gets data from SQS and writes to DynamoDB",
+  "main": "src/index.js",
+  "author": "jan.szczepkowski@dynatrace.com"
+}
