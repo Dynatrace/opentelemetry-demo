@@ -1,0 +1,7 @@
+boto3
+opentelemetry-instrumentation-botocore
+opentelemetry-instrumentation-boto3sqs
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-otlp
+python-json-logger

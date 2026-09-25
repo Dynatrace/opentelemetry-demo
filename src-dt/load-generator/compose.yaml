@@ -1,0 +1,11 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-file: "5"
+    max-size: "10m"
+
+services:
+  load-generator:
+    image: ${REPOSITORY}/cloud-backend-load-generator:${TAG}
+    build: .
+    logging: *default-logging

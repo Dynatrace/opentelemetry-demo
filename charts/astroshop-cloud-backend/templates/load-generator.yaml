@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "{{ .Release.Namespace }}"
+  name: &name load-generator
+  labels:
+    app: *name
+    version: "{{ .Values.tag }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: *name
+  template:
+    metadata:
+      labels:
+        app: *name
+        version: "{{ .Values.tag }}"
+    spec:
+      containers:
+        - name: load-generator
+          image: "{{ .Values.image }}:{{ .Values.tag }}"
+          imagePullPolicy: IfNotPresent
+          resources:
+            {{- .Values.resources | toYaml | nindent 12 }}
+          env:
+            {{- include "mapToList" .Values.envs | nindent 12 }}

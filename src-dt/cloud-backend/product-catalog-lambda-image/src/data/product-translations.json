@@ -1,0 +1,17 @@
+{
+  "products": [
+    {
+        "id": "OLJCESPC7Z",
+        "translations": [
+            {
+                "language": "de",
+                "description": "Das Explorascope 60AZ der National Park Foundations (NPF) ist ein manuelles Alt-Azimut-Refraktor-Teleskop, das sich perfekt für die Himmelsbeobachtung unterwegs eignet. Das NPF Explorascope 60 kann Planeten, Mond, Sternhaufen und hellere Himmelsobjekte wie den Orionnebel und die Andromeda-Galaxie beobachten."
+            },
+            {
+                "language": "es",
+                "description": "El Explorascope 60AZ de la Fundación de Parques Nacionales (NPF) es un telescopio refractor manual de azimut alternativo, perfecto para observar el cielo mientras viaja. El NPF Explorascope 60 puede observar los planetas, la luna, los cúmulos estelares y objetos más brillantes del cielo profundo, como la nebulosa de Orión y la galaxia de Andrómeda."
+            }
+        ]
+    }
+]
+}

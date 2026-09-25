@@ -1,0 +1,22 @@
+image: europe-docker.pkg.dev/dynatrace-demoability/docker/cloud-backend-load-generator
+tag: 1.2.0
+resources:
+  requests:
+    cpu: 50m
+    memory: 50Mi
+  limits:
+    cpu: 50m
+    memory: 50Mi
+envs:
+  username:
+    name: USERNAME
+    value: "product_admin"
+  password:
+    name: PASSWORD
+    value: "P@$$$$w0rd" # need to double up the $ because kubernetes is a special snowflake
+  triggerErrorIntervalS:
+    name: TRIGGER_ERROR_INTERVAL_S
+    value: "120"
+  triggerWarningIntervalS:
+    name: TRIGGER_WARNING_INTERVAL_S
+    value: "30"

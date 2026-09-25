@@ -1,0 +1,60 @@
+services:
+  # Base image for the product-catalog-lambda-image service
+  product-catalog-lambda-image:
+    build:
+      context: ./product-catalog-lambda-image
+      dockerfile: Dockerfile.server
+      args:
+        DT_BUILD: ${DT_BUILD}
+        DT_GITCOMMIT: ${DT_GITCOMMIT}
+    platform: linux/amd64
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}
+
+  # Dev product-catalog-lambda-image with OneAgent
+  # Docs: https://docs.docker.com/compose/how-tos/dependent-images/
+  product-catalog-lambda-image-dev:
+    build:
+      context: ./product-catalog-lambda-image
+      dockerfile: Dockerfile.oneagent
+      additional_contexts:
+        base_image: "service:product-catalog-lambda-image"
+      args:
+        STAGE_NAME: dev
+    platform: linux/amd64
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}-dev
+
+  # Hardening product-catalog-lambda-image with OneAgent
+  product-catalog-lambda-image-hardening:
+    build:
+      context: ./product-catalog-lambda-image
+      dockerfile: Dockerfile.oneagent
+      additional_contexts:
+        base_image: "service:product-catalog-lambda-image"
+      args:
+        STAGE_NAME: hardening
+    platform: linux/amd64
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}-hardening
+
+  # Prod product-catalog-lambda-image with OneAgent
+  product-catalog-lambda-image-prod:
+    build:
+      context: ./product-catalog-lambda-image
+      dockerfile: Dockerfile.oneagent
+      additional_contexts:
+        base_image: "service:product-catalog-lambda-image"
+      args:
+        STAGE_NAME: prod
+    platform: linux/amd64
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}-prod
+
+  data-processing:
+    build:
+      context: ./data-processing/src
+    platform: linux/amd64
+    image: ${ECR_REGISTRY}/astroshop/aws-appobs-demo-data-processing-service:${DATA_PROCESSING_VERSION}
+
+  processed-data-persistence:
+    build:
+      context: ./processed-data-persistence/src
+    platform: linux/amd64
+    image: ${ECR_REGISTRY}/astroshop/aws-appobs-demo-processed-data-persistence-service:${PROCESSED_DATA_PERSISTENCE_VERSION}

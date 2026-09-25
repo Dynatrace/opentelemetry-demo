@@ -1,0 +1,68 @@
+# Build configuration for the astroshop cloud-backend services.
+#
+# The build pipeline that consumes this file is not written yet. Until it is,
+# nothing here is read automatically.
+#
+# The infrastructure that deploys these artifacts lives in
+# Dynatrace/opentelemetry-demo-infrastructure (terraform/cloud-backend) and keeps
+# its own copy of the `stage` and `aws` sections; the `app` version prefixes below
+# are the part only this repository needs.
+#
+# Contract the pipeline has to honour — Terraform reads the two zip-packaged
+# Lambdas from fixed keys in the bucket named under `aws.artifacts_s3_bucket`:
+#
+#   raw-data-persistence/<version>/function.zip
+#   reporting/<version>/function.zip
+#
+# where <version> is `app.<service>.version_prefix` plus a build-unique suffix.
+# The bucket has no object versioning — the key prefix is the version, so a
+# published prefix must never be overwritten. Whichever version an environment
+# runs is pinned in terraform/cloud-backend/environments/root.hcl.
+
+# Docker build configuration for different deployment stages
+stage:
+  dev:
+    agent:
+      # GET https://fxz0998d.dev.apps.dynatracelabs.com/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
+      version: "1.342.0.20260601-175321"
+      region: us-east-1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+
+  hardening:
+    agent:
+      # GET https://wyq34449.sprint.apps.dynatracelabs.com/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
+      version: "1.341.18.20260611-160400"
+      region: us-east-1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+
+  prod:
+    agent:
+      # GET https://wkf10640.apps.dynatrace.com/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
+      version: "1.337.51.20260520-164208"
+      region: us-east-1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+
+# Application configuration
+app:
+  product_catalog_lambda_image:
+    version_prefix: "2.2.1"
+
+  data_processing:
+    version_prefix: "1.1.0"
+
+  processed_data_persistence:
+    version_prefix: "1.1.0"
+
+  reporting:
+    version_prefix: "1.1.0"
+
+  raw_data_persistence:
+    version_prefix: "1.1.0"
+
+# AWS configuration
+aws:
+  region: us-east-1
+  artifacts_s3_bucket: astroshop-artifacts-bucket
