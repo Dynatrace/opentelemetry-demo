@@ -40,116 +40,94 @@ jobs:
   calc-version:
     uses: ./.github/workflows/reusable-calc-version.yaml
 
-  list-services:
+  list-images:
     runs-on: ubuntu-24.04
     outputs:
-      services: ${{ steps.list.outputs.services }}
+      matrix: ${{ steps.combine.outputs.matrix }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: List buildable services
-        id: list
+        id: scan
         uses: ./.github/actions/list-build-services
+
+      - name: Build image matrix
+        id: combine
+        shell: bash
+        env:
+          SERVICES: ${{ steps.scan.outputs.services }}
+          REGISTRY: ${{ env.CONTAINER_REGISTRY }}
+        run: |
+          set -euo pipefail
+
+          # Everything in the root compose file shares one registry and takes the
+          # service name as a tag suffix
+          ROOT=$(jq -c --arg r "$REGISTRY" '[ .[] | {
+            service: ., directory: ".", "compose-file": "docker-compose.yml",
+            "registry-type": "gar", registry: $r
+          } ]' <<<"$SERVICES")
+
+          EXTRA=$(yq -o=json '.images' .github/images.yaml | jq -c 'map(. * (.pr // {}) | del(.pr))')
+
+          MATRIX=$(jq -c -n --argjson a "$ROOT" --argjson b "$EXTRA" '$a + $b')
+          echo "Building $(jq length <<<"$MATRIX") images"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
   build-push-image:
     if: needs.calc-version.outputs.already-released == 'false'
     needs:
       - calc-version
-      - list-services
+      - list-images
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        service: ${{ fromJson(needs.list-services.outputs.services) }}
+        include: ${{ fromJson(needs.list-images.outputs.matrix) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Build and push ${{ matrix.service }}
-        uses: ./.github/actions/build-push-image
-        env:
-          GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
+      - name: Authenticate to AWS
+        if: matrix.registry-type == 'ecr'
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          service: ${{ matrix.service }}
-          push: false
-          tag: ${{ needs.calc-version.outputs.version }}
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          role-session-name: GitHub-OIDC-astroshop-build
 
-  build-push-dt-image:
-    if: needs.calc-version.outputs.already-released == 'false'
-    needs: calc-version
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: consumer-service-vulnerable
-            directory: src-dt/consumer-service
-            registry: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop-consumer-service
-          - service: consumer-service-healthy
-            directory: src-dt/consumer-service
-            registry: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop-consumer-service
-          - service: load-generator
-            directory: src-dt/load-generator
-            registry: europe-docker.pkg.dev/dynatrace-demoability/docker/cloud-backend-load-generator
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Download OneAgent Lambda extension
+        if: matrix.needs-oneagent-layer == 'true'
+        uses: ./.github/actions/download-oneagent-layer
 
-      - name: Build ${{ matrix.service }}
+      - name: Log in to ECR
+        id: ecr
+        if: matrix.registry-type == 'ecr'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build  ${{ matrix.service }}
+        if: matrix.registry-type == 'gar'
         uses: ./.github/actions/build-push-image
         env:
           GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
         with:
           service: ${{ matrix.service }}
           working-directory: ${{ matrix.directory }}
-          compose-file: compose.yaml
+          compose-file: ${{ matrix.compose-file }}
           registry: ${{ matrix.registry }}
           push: false
           tag: ${{ needs.calc-version.outputs.version }}
 
-  build-push-cloud-backend-image:
-    if: needs.calc-version.outputs.already-released == 'false'
-    needs: calc-version
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - data-processing
-          - processed-data-persistence
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      # No AWS credentials on PRs: the image is built and loaded locally, never
-      # pushed, so the registry host is only a placeholder in the tag
-      - name: Build ${{ matrix.service }}
+      - name: Build  ${{ matrix.service }}
+        if: matrix.registry-type == 'ecr'
         uses: ./.github/actions/build-push-ecr-image
         with:
           service: ${{ matrix.service }}
+          working-directory: ${{ matrix.directory }}
+          compose-file: ${{ matrix.compose-file }}
           version: ${{ needs.calc-version.outputs.version }}
           ecr-registry: local
-          push: false
-
-  build-product-catalog-image:
-    if: needs.calc-version.outputs.already-released == 'false'
-    needs: calc-version
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      # Only the base image is built here. The three stage variants need the
-      # OneAgent extension, which is fetched from AWS, and PRs hold no AWS
-      # credentials — so they are left to the main build.
-      - name: Build product-catalog base image
-        uses: ./.github/actions/build-push-ecr-image
-        with:
-          service: product-catalog-lambda-image
-          version: ${{ needs.calc-version.outputs.version }}
-          ecr-registry: local
-          provenance: "false"
+          provenance: ${{ matrix.provenance }}
           push: false
 
   publish-lambda-zip:
