@@ -6,6 +6,6 @@ x-logging: &default-logging
 
 services:
   load-generator:
-    image: ${REPOSITORY}/cloud-backend-load-generator:${TAG}
+    image: ${IMAGE_NAME}:${DEMO_VERSION}
     build: .
     logging: *default-logging

@@ -1,23 +1,23 @@
 # Build configuration for the astroshop cloud-backend services.
 #
-# The build pipeline that consumes this file is not written yet. Until it is,
-# nothing here is read automatically.
+# Read by .github/actions/download-oneagent-layer, which resolves the OneAgent
+# Lambda layer for each `stage` below and unpacks it into the product-catalog
+# image build.
 #
-# The infrastructure that deploys these artifacts lives in
-# Dynatrace/opentelemetry-demo-infrastructure (terraform/cloud-backend) and keeps
-# its own copy of the `stage` and `aws` sections; the `app` version prefixes below
-# are the part only this repository needs.
+# Artifact versions are NOT configured here. Every astroshop artifact — images,
+# Helm charts and the two zip-packaged Lambdas — is tagged with the single
+# version the calc-version workflow produces.
 #
-# Contract the pipeline has to honour — Terraform reads the two zip-packaged
-# Lambdas from fixed keys in the bucket named under `aws.artifacts_s3_bucket`:
+# Contract the build honours — Terraform reads the two zip-packaged Lambdas from
+# fixed keys in the bucket named under `aws.artifacts_s3_bucket`:
 #
 #   raw-data-persistence/<version>/function.zip
 #   reporting/<version>/function.zip
 #
-# where <version> is `app.<service>.version_prefix` plus a build-unique suffix.
 # The bucket has no object versioning — the key prefix is the version, so a
-# published prefix must never be overwritten. Whichever version an environment
-# runs is pinned in terraform/cloud-backend/environments/root.hcl.
+# published prefix must never be overwritten; the publish step refuses to. Which
+# version an environment runs is pinned in
+# terraform/cloud-backend/environments/root.hcl in the infrastructure repository.
 
 # Docker build configuration for different deployment stages
 stage:
@@ -44,23 +44,6 @@ stage:
       region: us-east-1
       arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
       arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
-
-# Application configuration
-app:
-  product_catalog_lambda_image:
-    version_prefix: "2.2.1"
-
-  data_processing:
-    version_prefix: "1.1.0"
-
-  processed_data_persistence:
-    version_prefix: "1.1.0"
-
-  reporting:
-    version_prefix: "1.1.0"
-
-  raw_data_persistence:
-    version_prefix: "1.1.0"
 
 # AWS configuration
 aws:

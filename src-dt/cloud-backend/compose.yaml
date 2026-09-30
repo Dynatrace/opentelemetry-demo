@@ -8,7 +8,7 @@ services:
         DT_BUILD: ${DT_BUILD}
         DT_GITCOMMIT: ${DT_GITCOMMIT}
     platform: linux/amd64
-    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${VERSION}
 
   # Dev product-catalog-lambda-image with OneAgent
   # Docs: https://docs.docker.com/compose/how-tos/dependent-images/
@@ -21,7 +21,7 @@ services:
       args:
         STAGE_NAME: dev
     platform: linux/amd64
-    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}-dev
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${VERSION}-dev
 
   # Hardening product-catalog-lambda-image with OneAgent
   product-catalog-lambda-image-hardening:
@@ -33,7 +33,7 @@ services:
       args:
         STAGE_NAME: hardening
     platform: linux/amd64
-    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}-hardening
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${VERSION}-hardening
 
   # Prod product-catalog-lambda-image with OneAgent
   product-catalog-lambda-image-prod:
@@ -45,16 +45,16 @@ services:
       args:
         STAGE_NAME: prod
     platform: linux/amd64
-    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${PRODUCT_CATALOG_LAMBDA_IMAGE_VERSION}-prod
+    image: ${ECR_REGISTRY}/astroshop/productcatalogadmin:${VERSION}-prod
 
   data-processing:
     build:
       context: ./data-processing/src
     platform: linux/amd64
-    image: ${ECR_REGISTRY}/astroshop/aws-appobs-demo-data-processing-service:${DATA_PROCESSING_VERSION}
+    image: ${ECR_REGISTRY}/astroshop/aws-appobs-demo-data-processing-service:${VERSION}
 
   processed-data-persistence:
     build:
       context: ./processed-data-persistence/src
     platform: linux/amd64
-    image: ${ECR_REGISTRY}/astroshop/aws-appobs-demo-processed-data-persistence-service:${PROCESSED_DATA_PERSISTENCE_VERSION}
+    image: ${ECR_REGISTRY}/astroshop/aws-appobs-demo-processed-data-persistence-service:${VERSION}

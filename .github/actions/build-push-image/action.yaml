@@ -20,9 +20,13 @@ inputs:
     required: false
     default: "europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop"
   compose-file:
-    description: "Path to docker compose file"
+    description: "Path to docker compose file, relative to working-directory"
     required: false
     default: "docker-compose.yml"
+  working-directory:
+    description: "Directory to run the build from; buildx bake resolves build contexts relative to it"
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -38,6 +42,7 @@ runs:
 
     - name: Build and push image
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       env:
         SERVICE: ${{ inputs.service }}
         REGISTRY: ${{ inputs.registry }}
@@ -47,11 +52,12 @@ runs:
         COMPOSE_FILE: ${{ inputs.compose-file }}
       run: |
         echo "Building image for service: $SERVICE with tag: $TAG"
-        
-        # Source the env files to get all required variables
+
+        # Source the env files to get all required variables; they live at the
+        # repo root regardless of which directory we build from
         set -a
-        source .env
-        source .env.override
+        source "$GITHUB_WORKSPACE/.env"
+        source "$GITHUB_WORKSPACE/.env.override"
         set +a
         
         # Override with our values
@@ -82,6 +88,7 @@ runs:
     - name: Push image with latest tag
       if: inputs.push == 'true' && inputs.push-latest == 'true'
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       env:
         SERVICE: ${{ inputs.service }}
         REGISTRY: ${{ inputs.registry }}
@@ -89,11 +96,12 @@ runs:
         COMPOSE_FILE: ${{ inputs.compose-file }}
       run: |
         echo "Building and pushing $SERVICE with latest tag..."
-        
-        # Source the env files to get all required variables
+
+        # Source the env files to get all required variables; they live at the
+        # repo root regardless of which directory we build from
         set -a
-        source .env
-        source .env.override
+        source "$GITHUB_WORKSPACE/.env"
+        source "$GITHUB_WORKSPACE/.env.override"
         set +a
         
         # Override with latest tag

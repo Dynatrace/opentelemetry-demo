@@ -25,3 +25,8 @@ spec:
             {{- .Values.resources | toYaml | nindent 12 }}
           env:
             {{- include "mapToList" .Values.envs | nindent 12 }}
+          {{- if .Values.externalSecret.enabled }}
+          envFrom:
+            - secretRef:
+                name: load-generator-credentials
+          {{- end }}

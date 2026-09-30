@@ -7,12 +7,15 @@ on:
       - .github/**
       - kubernetes-manifests/**
       - src/**
+      - src-dt/**
       - charts/**
       - dynatrace/**
   workflow_dispatch:
 
   workflow_call:
     secrets:
+      AWS_ROLE:
+        required: true
       GAR_CREDENTIALS:
         required: true
       KUBECONFIG:
@@ -35,7 +38,8 @@ env:
   NAMESPACE: astroshop
   CONTAINER_REGISTRY: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop
   HELM_REGISTRY: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
-  HELM_CHART_PATH: charts/astroshop
+  CLOUD_BACKEND_AWS_REGION: us-east-1
+  LAMBDA_ARTIFACTS_BUCKET: astroshop-artifacts-bucket
 
 jobs:
   calc-version:
@@ -76,18 +80,179 @@ jobs:
           push: true
           tag: ${{ needs.calc-version.outputs.version }}
 
-  build-push-helm:
+  build-push-dt-image:
     if: needs.calc-version.outputs.already-released == 'false'
-    runs-on: ubuntu-24.04
     needs: calc-version
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: consumer-service-vulnerable
+            directory: src-dt/consumer-service
+            registry: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop-consumer-service
+          - service: consumer-service-healthy
+            directory: src-dt/consumer-service
+            registry: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop-consumer-service
+          - service: load-generator
+            directory: src-dt/load-generator
+            registry: europe-docker.pkg.dev/dynatrace-demoability/docker/cloud-backend-load-generator
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Build and push Helm chart
+      - name: Build and push ${{ matrix.service }}
+        uses: ./.github/actions/build-push-image
+        env:
+          GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
+        with:
+          service: ${{ matrix.service }}
+          working-directory: ${{ matrix.directory }}
+          compose-file: compose.yaml
+          registry: ${{ matrix.registry }}
+          push: true
+          tag: ${{ needs.calc-version.outputs.version }}
+
+  build-push-cloud-backend-image:
+    if: needs.calc-version.outputs.already-released == 'false'
+    needs: calc-version
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - data-processing
+          - processed-data-persistence
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          role-session-name: GitHub-OIDC-astroshop-build
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push ${{ matrix.service }}
+        uses: ./.github/actions/build-push-ecr-image
+        with:
+          service: ${{ matrix.service }}
+          version: ${{ needs.calc-version.outputs.version }}
+          ecr-registry: ${{ steps.ecr.outputs.registry }}
+          push: true
+
+  build-push-product-catalog-image:
+    if: needs.calc-version.outputs.already-released == 'false'
+    needs: calc-version
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          role-session-name: GitHub-OIDC-astroshop-build
+
+      - name: Download OneAgent Lambda extension
+        uses: ./.github/actions/download-oneagent-layer
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # All four targets bake together: the three stage variants use the base
+      # image as an additional build context, which only resolves in one run
+      - name: Build and push product-catalog images
+        uses: ./.github/actions/build-push-ecr-image
+        with:
+          service: >-
+            product-catalog-lambda-image
+            product-catalog-lambda-image-dev
+            product-catalog-lambda-image-hardening
+            product-catalog-lambda-image-prod
+          version: ${{ needs.calc-version.outputs.version }}
+          ecr-registry: ${{ steps.ecr.outputs.registry }}
+          provenance: "false"
+          push: true
+
+  publish-lambda-zip:
+    if: needs.calc-version.outputs.already-released == 'false'
+    needs: calc-version
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: raw-data-persistence
+            runtime: nodejs
+            runtime-version: "22"
+            source-dir: src-dt/cloud-backend/raw-data-persistence/src
+          - service: reporting
+            runtime: python
+            runtime-version: "3.12"
+            source-dir: src-dt/cloud-backend/reporting/src
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          role-session-name: GitHub-OIDC-astroshop-build
+
+      - name: Package and publish ${{ matrix.service }}
+        uses: ./.github/actions/package-lambda-zip
+        with:
+          service: ${{ matrix.service }}
+          runtime: ${{ matrix.runtime }}
+          runtime-version: ${{ matrix.runtime-version }}
+          source-dir: ${{ matrix.source-dir }}
+          version: ${{ needs.calc-version.outputs.version }}
+          s3-bucket: ${{ env.LAMBDA_ARTIFACTS_BUCKET }}
+          push: true
+
+  build-push-helm:
+    if: needs.calc-version.outputs.already-released == 'false'
+    runs-on: ubuntu-24.04
+    needs: calc-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chart-path: charts/astroshop
+            image-tag-path: .opentelemetry-demo.default.image.tag
+          - chart-path: charts/astroshop-consumer-service
+            image-tag-path: .tag
+          - chart-path: charts/astroshop-cloud-backend
+            image-tag-path: .tag
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build and push ${{ matrix.chart-path }}
         uses: ./.github/actions/build-push-helm
         with:
-          chart-path: ${{ env.HELM_CHART_PATH }}
+          chart-path: ${{ matrix.chart-path }}
+          image-tag-path: ${{ matrix.image-tag-path }}
           push: true
           registry-url: ${{ env.HELM_REGISTRY }}
           version: ${{ needs.calc-version.outputs.version }}
@@ -98,6 +263,10 @@ jobs:
     needs:
       - calc-version
       - build-push-image
+      - build-push-dt-image
+      - build-push-cloud-backend-image
+      - build-push-product-catalog-image
+      - publish-lambda-zip
       - build-push-helm
     permissions:
       contents: write

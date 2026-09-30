@@ -58,7 +58,7 @@ spec:
       serviceAccountName: "{{ .Values.serviceAccountName }}"
       containers:
         - name: astroshop-consumer-service
-          image: "{{ .Values.image }}:{{ .Values.tag }}"
+          image: "{{ .Values.image }}:{{ .Values.tag }}-{{ .Values.variant }}"
           imagePullPolicy: IfNotPresent
           env: {{- include "mapToList" .Values.envs | nindent 10 }}
           resources:
