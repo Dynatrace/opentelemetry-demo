@@ -48,8 +48,14 @@ export default class SubscriptionRoutes {
       if (req.header('x-amz-sns-message-type') === 'SubscriptionConfirmation') {
         const payload = JSON.parse(body) as SubscriptionConfirmation;
         try {
-          req.log.info('Confirming subscription at', payload.SubscribeURL);
-          const fetchResponse = await fetch(payload.SubscribeURL, { method: 'GET' });
+          const subscribeUrl = this.getValidatedSnsSubscribeUrl(payload.SubscribeURL);
+          if (!subscribeUrl) {
+            req.log.warn('Rejected invalid SNS SubscribeURL');
+            return res.status(400).send('Invalid SubscribeURL');
+          }
+
+          req.log.info('Confirming subscription at', subscribeUrl);
+          const fetchResponse = await fetch(subscribeUrl, { method: 'GET' });
 
           if (fetchResponse.status === 200) {
             const data = await fetchResponse.text();
@@ -175,6 +181,30 @@ export default class SubscriptionRoutes {
       req.log.error(err);
     }
     return res.status(500).send();
+  }
+
+  private getValidatedSnsSubscribeUrl(rawUrl: string): string | null {
+    try {
+      const parsed = new URL(rawUrl);
+      if (parsed.protocol !== 'https:') {
+        return null;
+      }
+
+      // Allow only standard AWS SNS endpoint hostnames.
+      const snsHostPattern = /^sns\.[a-z0-9-]+\.amazonaws\.com(\.cn)?$/i;
+      if (!snsHostPattern.test(parsed.hostname)) {
+        return null;
+      }
+
+      // Disallow embedded credentials.
+      if (parsed.username || parsed.password) {
+        return null;
+      }
+
+      return parsed.toString();
+    } catch {
+      return null;
+    }
   }
 
   private getAwsSdkv3Client(client: S3Client): S3Client {
