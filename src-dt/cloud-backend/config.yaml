@@ -32,7 +32,7 @@ stage:
   hardening:
     agent:
       # GET https://wyq34449.sprint.apps.dynatracelabs.com/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.347.49.20260928-064841"
+      version: "1.347.51.20260930-142041"
       region: us-east-1
       arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
       arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
@@ -40,7 +40,7 @@ stage:
   prod:
     agent:
       # GET https://wkf10640.apps.dynatrace.com/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.343.114.20260910-093241"
+      version: "1.345.81.20260917-170831"
       region: us-east-1
       arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
       arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1

@@ -1,6 +1,7 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import { Translations } from 'services/Translations';
 import { Database } from 'services/Database';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export default class ProductRoutes {
   public router: Router;
@@ -16,11 +17,11 @@ export default class ProductRoutes {
 
   protected registerRoutes(): void {
     // Setup express Routes
-    this.router.get('/', this.getAllProducts.bind(this));
-    this.router.get('/:key', this.getProduct.bind(this));
-    this.router.post('/', this.addProduct.bind(this));
-    this.router.put('/:key', this.updateProduct.bind(this));
-    this.router.delete('/:key', this.deleteProduct.bind(this));
+    this.router.get('/', asyncHandler(this.getAllProducts.bind(this)));
+    this.router.get('/:key', asyncHandler(this.getProduct.bind(this)));
+    this.router.post('/', asyncHandler(this.addProduct.bind(this)));
+    this.router.put('/:key', asyncHandler(this.updateProduct.bind(this)));
+    this.router.delete('/:key', asyncHandler(this.deleteProduct.bind(this)));
   }
 
   private async getAllProducts(req: Request, res: Response, next: NextFunction) {
@@ -47,18 +48,18 @@ export default class ProductRoutes {
 
   private async addProduct(req: Request, res: Response, next: NextFunction) {
     const product = req.body;
-    if (product) {
-      req.log.info('POST /db/product', product);
-      const addedState = await this.database.ProductState.create({ key: product.id, value: product });
-      if (product.description) {
-        req.log.info('Product description added', product.description);
-        await this.translations.requestTranslation(product.id, [{ name: "description", value: product.description }]);
-      }
-      else
-        req.log.info('Product description not added');
+    if (!product?.id) {
+      req.log.warn('POST /db/product', 'Product id is required');
+      return res.status(400).send('Product id is required');
+    }
+    req.log.info('POST /db/product', product);
+    await this.database.ProductState.create({ key: product.id, value: product });
+    if (product.description) {
+      req.log.info('Product description added', product.description);
+      await this.translations.requestTranslation(product.id, [{ name: "description", value: product.description }]);
     }
     else
-      req.log.warn('POST /db/product', 'No product data in request');
+      req.log.info('Product description not added');
     return res.send('OK');
   }
 

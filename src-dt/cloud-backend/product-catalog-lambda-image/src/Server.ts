@@ -103,6 +103,13 @@ class Server {
     this.app.use('/db/product', this.auth.isAuthorized, express.json(this.jsonSettings), new ProductRoutes(this.database, this.translations).router)
     this.app.use('/db/product-translation', this.auth.isAuthorized, express.json(this.jsonSettings), new ProductTranslationRoutes(this.database).router)
     this.app.use('/subscription', new SubscriptionRoutes(this.aws_credentials, this.database).router)
+
+    // Respond with 500 instead of letting a failed request crash the runtime
+    this.app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+      req.log.error(err);
+      if (res.headersSent) return next(err);
+      return res.status(500).send('Internal Server Error');
+    });
   }
 
   public async startStandalone() {
