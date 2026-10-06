@@ -35,7 +35,6 @@ env:
   CONTAINER_REGISTRY: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop
   HELM_REGISTRY: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
   LAMBDA_ARTIFACTS_BUCKET: astroshop-artifacts-bucket
-  CLOUD_BACKEND_AWS_REGION: us-east-1
 
 jobs:
   calc-version:
@@ -89,22 +88,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Authenticate to AWS
-        if: matrix.registry-type == 'ecr'
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE }}
-          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
-          role-session-name: GitHub-OIDC-astroshop-build
-
       - name: Download OneAgent Lambda extension
         if: matrix.needs-oneagent-layer == 'true'
         uses: ./.github/actions/download-oneagent-layer
-
-      - name: Log in to ECR
-        id: ecr
-        if: matrix.registry-type == 'ecr'
-        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build  ${{ matrix.service }}
         if: matrix.registry-type == 'gar'
