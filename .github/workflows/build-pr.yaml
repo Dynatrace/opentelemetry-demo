@@ -35,6 +35,7 @@ env:
   CONTAINER_REGISTRY: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop
   HELM_REGISTRY: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
   LAMBDA_ARTIFACTS_BUCKET: astroshop-artifacts-bucket
+  CLOUD_BACKEND_AWS_REGION: us-east-1
 
 jobs:
   calc-version:
