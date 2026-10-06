@@ -50,10 +50,14 @@ runs:
 
         if [ "$PUSH" == "true" ]; then
           PUSH_FLAG="--push"
+          PROVENANCE_FLAG="$PROVENANCE"
           echo "Image will be pushed to ECR"
         else
-          PUSH_FLAG="--load"
-          echo "Image will be loaded locally"
+          PUSH_FLAG=""
+          # Provenance attestations produce a manifest list that the local Docker
+          # daemon cannot import; they are also meaningless without a registry.
+          PROVENANCE_FLAG="false"
+          echo "Image will be built but not pushed"
         fi
 
         # Build metadata the product-catalog image stamps itself with
@@ -62,7 +66,7 @@ runs:
 
         docker buildx bake \
           --file "$COMPOSE_FILE" \
-          --provenance="$PROVENANCE" \
+          --provenance="$PROVENANCE_FLAG" \
           --set "*.args.GIT_COMMIT=$(git rev-parse HEAD)" \
           --set "*.args.GIT_ORIGIN=$(git config --get remote.origin.url)" \
           $PUSH_FLAG \
