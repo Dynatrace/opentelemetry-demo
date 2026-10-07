@@ -8,12 +8,12 @@ resources:
     cpu: 50m
     memory: 50Mi
 externalSecret:
-  enabled: true
+  enabled: false
   refreshInterval: 1h
   secretStoreRef:
-    name: aws-secrets-manager
+    name: ""
     kind: ClusterSecretStore
-  remoteKey: argocd/astroshop-product-catalog-admin
+  remoteKey: ""
 
 envs:
   triggerErrorIntervalS:
