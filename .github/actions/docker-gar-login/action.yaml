@@ -1,0 +1,10 @@
+name: "Log in to Google Artifact Registry"
+description: "Authenticate Docker to GAR using base64-encoded service account credentials from the GAR_CREDENTIALS env var"
+
+runs:
+  using: composite
+  steps:
+    - name: Log in to GAR
+      shell: bash
+      run: |
+        echo "$GAR_CREDENTIALS" | docker login -u _json_key_base64 --password-stdin europe-docker.pkg.dev
