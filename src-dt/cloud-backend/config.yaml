@@ -30,8 +30,8 @@ stage:
       arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
 
   hardening:
-      agent:
-        # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
+    agent:
+      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
       version: "1.347.51.20260930-142041"
       region: us-east-1
       arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
