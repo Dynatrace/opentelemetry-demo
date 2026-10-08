@@ -1,0 +1,17 @@
+image: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop-consumer-service
+# Fallback for installs from chart source; CI overwrites this with the
+# calc-version output before packaging
+tag: 1.5.1
+# Which image variant to run. "vulnerable" loads the mock-malicious
+# json-rules-engine-simplified package; "healthy" does not. No unsuffixed tag is
+# published, so this always has to resolve to one of the two.
+variant: vulnerable
+kubectlImage: bitnamilegacy/kubectl
+kubectlImageTag: 1.33.4
+serviceAccountName: astroshop-consumer-service-account
+scaleDownCronExpression: "25 10 * * *"
+scaleUpCronExpression: "25 13 * * *"
+envs:
+  awsRegion:
+    name: AWS_REGION
+    value: "us-east-1"

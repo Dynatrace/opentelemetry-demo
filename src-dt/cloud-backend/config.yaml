@@ -1,0 +1,51 @@
+# Build configuration for the astroshop cloud-backend services.
+#
+# Read by .github/actions/download-oneagent-layer, which resolves the OneAgent
+# Lambda layer for each `stage` below and unpacks it into the product-catalog
+# image build.
+#
+# Artifact versions are NOT configured here. Every astroshop artifact — images,
+# Helm charts and the two zip-packaged Lambdas — is tagged with the single
+# version the calc-version workflow produces.
+#
+# Contract the build honours — Terraform reads the two zip-packaged Lambdas from
+# fixed keys in the bucket named under `aws.artifacts_s3_bucket`:
+#
+#   raw-data-persistence/<version>/function.zip
+#   reporting/<version>/function.zip
+#
+# The bucket has no object versioning — the key prefix is the version, so a
+# published prefix must never be overwritten; the publish step refuses to. Which
+# version an environment runs is pinned in
+# terraform/cloud-backend/environments/root.hcl in the infrastructure repository.
+
+# Docker build configuration for different deployment stages
+stage:
+  dev:
+    agent:
+      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
+      version: "1.350.0.20260929-084638"
+      region: us-east-1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+
+  hardening:
+    agent:
+      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
+      version: "1.347.51.20260930-142041"
+      region: us-east-1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+
+  prod:
+    agent:
+      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
+      version: "1.345.81.20260917-170831"
+      region: us-east-1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+
+# AWS configuration
+aws:
+  region: us-east-1
+  artifacts_s3_bucket: astroshop-artifacts-bucket

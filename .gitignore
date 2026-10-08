@@ -53,3 +53,10 @@ test/tracetesting/tracetesting-vars.yaml
 *.apk
 
 !src/currency/build
+
+# Dynatrace OneAgent Lambda extension, downloaded at build time
+src-dt/cloud-backend/product-catalog-lambda-image/DynatraceOneAgentExtension/
+
+# Per-service compose defaults are tracked; local overrides such as
+# .env.staging, which carries AWS credentials config, are not
+src-dt/*/.env.*

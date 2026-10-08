@@ -1,0 +1,154 @@
+name: Build and push images and charts
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: "Whether to push images and charts to their registries"
+        type: boolean
+        required: true
+      is-pr:
+        description: "Whether this is a pull request build (applies .pr overrides in images.yaml)"
+        type: boolean
+        required: true
+      version:
+        description: "Image and chart version from calc-version"
+        type: string
+        required: true
+
+env:
+  CONTAINER_REGISTRY: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop
+  HELM_REGISTRY: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
+  CLOUD_BACKEND_AWS_REGION: us-east-1
+  LAMBDA_ARTIFACTS_BUCKET: astroshop-artifacts-bucket
+
+jobs:
+  list-images:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.scan.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: List buildable services
+        id: scan
+        uses: ./.github/actions/list-build-services
+        with:
+          registry: ${{ env.CONTAINER_REGISTRY }}
+          is-pr: ${{ inputs.is-pr }}
+
+  build-push-image:
+    needs: list-images
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.list-images.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Authenticate to AWS
+        if: inputs.push && matrix.registry-type == 'ecr'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          role-session-name: GitHub-OIDC-astroshop-build
+
+      - name: Download OneAgent Lambda extension
+        if: matrix.needs-oneagent-layer == 'true'
+        uses: ./.github/actions/download-oneagent-layer
+
+      - name: Log in to GAR
+        if: inputs.push && matrix.registry-type == 'gar'
+        uses: ./.github/actions/docker-gar-login
+        env:
+          GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
+
+      - name: Log in to ECR
+        id: ecr
+        if: inputs.push && matrix.registry-type == 'ecr'
+        uses: ./.github/actions/docker-ecr-login
+
+      - name: Build ${{ inputs.push && 'and push ' || '' }}${{ matrix.service }}
+        uses: ./.github/actions/build-push-image
+        with:
+          service: ${{ matrix.service }}
+          working-directory: ${{ matrix.directory }}
+          compose-file: ${{ matrix.compose-file }}
+          registry-type: ${{ matrix.registry-type }}
+          registry: ${{ matrix.registry }}
+          ecr-registry: ${{ steps.ecr.outputs.registry || 'local' }}
+          provenance: ${{ matrix.provenance || 'true' }}
+          push: ${{ inputs.push }}
+          tag: ${{ inputs.version }}
+
+  publish-lambda-zip:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: raw-data-persistence
+            runtime: nodejs
+            runtime-version: "22"
+            source-dir: src-dt/cloud-backend/raw-data-persistence/src
+          - service: reporting
+            runtime: python
+            runtime-version: "3.12"
+            source-dir: src-dt/cloud-backend/reporting/src
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Authenticate to AWS
+        if: inputs.push
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          role-session-name: GitHub-OIDC-astroshop-build
+
+      - name: ${{ inputs.push && 'Package and publish' || 'Package' }} ${{ matrix.service }}
+        uses: ./.github/actions/package-lambda-zip
+        with:
+          service: ${{ matrix.service }}
+          runtime: ${{ matrix.runtime }}
+          runtime-version: ${{ matrix.runtime-version }}
+          source-dir: ${{ matrix.source-dir }}
+          version: ${{ inputs.version }}
+          s3-bucket: ${{ env.LAMBDA_ARTIFACTS_BUCKET }}
+          push: ${{ inputs.push }}
+
+  build-push-helm:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - chart-path: charts/astroshop
+            image-tag-path: .opentelemetry-demo.default.image.tag
+          - chart-path: charts/astroshop-consumer-service
+            image-tag-path: .tag
+          - chart-path: charts/astroshop-cloud-backend
+            image-tag-path: .tag
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build ${{ inputs.push && 'and push ' || '' }}${{ matrix.chart-path }}
+        uses: ./.github/actions/build-push-helm
+        with:
+          chart-path: ${{ matrix.chart-path }}
+          image-tag-path: ${{ matrix.image-tag-path }}
+          push: ${{ inputs.push }}
+          registry-url: ${{ env.HELM_REGISTRY }}
+          version: ${{ inputs.version }}
+          credentials: ${{ secrets.GAR_CREDENTIALS }}

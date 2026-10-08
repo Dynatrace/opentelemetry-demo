@@ -1,0 +1,7 @@
+redis
+aws-xray-sdk
+opentelemetry-api~=1.22.0
+opentelemetry-instrumentation-botocore
+opentelemetry-instrumentation-redis
+# Bug with missing pkg_resources https://github.com/pypa/setuptools/issues/5174
+setuptools>=70.0.0,<80.0.0

@@ -7,12 +7,15 @@ on:
       - .github/**
       - kubernetes-manifests/**
       - src/**
+      - src-dt/**
       - charts/**
       - dynatrace/**
   workflow_dispatch:
 
   workflow_call:
     secrets:
+      AWS_ROLE:
+        required: true
       GAR_CREDENTIALS:
         required: true
       KUBECONFIG:
@@ -30,75 +33,28 @@ on:
       SSO_URL:
         required: true
 
-env:
-  GAR_ADDRESS: europe-docker.pkg.dev
-  NAMESPACE: astroshop
-  CONTAINER_REGISTRY: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop
-  HELM_REGISTRY: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
-  HELM_CHART_PATH: charts/astroshop
-
 jobs:
   calc-version:
     uses: ./.github/workflows/reusable-calc-version.yaml
 
-  list-services:
-    runs-on: ubuntu-24.04
-    outputs:
-      services: ${{ steps.list.outputs.services }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: List buildable services
-        id: list
-        uses: ./.github/actions/list-build-services
-
-  build-push-image:
+  build:
     if: needs.calc-version.outputs.already-released == 'false'
-    needs:
-      - calc-version
-      - list-services
-    runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        service: ${{ fromJson(needs.list-services.outputs.services) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Build and push ${{ matrix.service }}
-        uses: ./.github/actions/build-push-image
-        env:
-          GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
-        with:
-          service: ${{ matrix.service }}
-          push: true
-          tag: ${{ needs.calc-version.outputs.version }}
-
-  build-push-helm:
-    if: needs.calc-version.outputs.already-released == 'false'
-    runs-on: ubuntu-24.04
     needs: calc-version
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Build and push Helm chart
-        uses: ./.github/actions/build-push-helm
-        with:
-          chart-path: ${{ env.HELM_CHART_PATH }}
-          push: true
-          registry-url: ${{ env.HELM_REGISTRY }}
-          version: ${{ needs.calc-version.outputs.version }}
-          credentials: ${{ secrets.GAR_CREDENTIALS }}
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/reusable-build.yaml
+    with:
+      push: true
+      is-pr: false
+      version: ${{ needs.calc-version.outputs.version }}
+    secrets: inherit
 
   promote:
     if: needs.calc-version.outputs.is-release == 'true'
     needs:
       - calc-version
-      - build-push-image
-      - build-push-helm
+      - build
     permissions:
       contents: write
       actions: write
