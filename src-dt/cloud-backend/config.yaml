@@ -40,7 +40,7 @@ stage:
   prod:
     agent:
       # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.345.81.20260917-170831"
+      version: "1.345.87.20261002-113835"
       region: us-east-1
       arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
       arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
