@@ -1,0 +1,53 @@
+name: "Download OneAgent Lambda Extension"
+description: "Fetch the Dynatrace OneAgent Lambda layer for each stage and unpack it where the product-catalog image build expects it"
+inputs:
+  config-file:
+    description: "Config file holding the per-stage agent version, region and layer ARN pattern"
+    required: false
+    default: "src-dt/cloud-backend/config.yaml"
+  target-dir:
+    description: "Directory the extension is unpacked into, one subdirectory per stage"
+    required: false
+    default: "src-dt/cloud-backend/product-catalog-lambda-image/DynatraceOneAgentExtension"
+
+runs:
+  using: composite
+  steps:
+    - name: Download and unpack layers
+      shell: bash
+      env:
+        CONFIG_FILE: ${{ inputs.config-file }}
+        TARGET_DIR: ${{ inputs.target-dir }}
+      run: |
+        set -euo pipefail
+
+        # Dockerfile.oneagent does `COPY ./DynatraceOneAgentExtension/$STAGE_NAME/ /opt/`,
+        # so every stage the compose file builds needs its own subdirectory here.
+        for STAGE in $(yq -r '.stage | keys | .[]' "$CONFIG_FILE"); do
+          ARN_PATTERN=$(yq -r ".stage.${STAGE}.agent.arn_layer_pattern_nodejs" "$CONFIG_FILE")
+          AGENT_VERSION=$(yq -r ".stage.${STAGE}.agent.version" "$CONFIG_FILE")
+          LAYER_REGION=$(yq -r ".stage.${STAGE}.agent.region" "$CONFIG_FILE")
+
+          # The ARN spells the agent version with underscores
+          ARN="${ARN_PATTERN/<VERSION>/${AGENT_VERSION//./_}}"
+
+          echo "==> $STAGE: $AGENT_VERSION"
+          LAYER_URL=$(aws --region "$LAYER_REGION" lambda get-layer-version-by-arn \
+            --arn "$ARN" --query 'Content.Location' --output text)
+
+          rm -rf "${TARGET_DIR:?}/$STAGE"
+          mkdir -p "$TARGET_DIR/$STAGE"
+
+          ARCHIVE="$RUNNER_TEMP/oneagent-layer-$STAGE.zip"
+          curl -fsSL "$LAYER_URL" --output "$ARCHIVE"
+          unzip -qq -o "$ARCHIVE" -d "$TARGET_DIR/$STAGE/"
+          rm -f "$ARCHIVE"
+
+          # The layer ships the version it was built from; make sure we unpacked
+          # what config.yaml actually asked for
+          UNPACKED=$(cat "$TARGET_DIR/$STAGE/dynatrace_layer/agent/installer.version")
+          if [ "$UNPACKED" != "$AGENT_VERSION" ]; then
+            echo "Layer for $STAGE contains agent $UNPACKED, expected $AGENT_VERSION" >&2
+            exit 1
+          fi
+        done

@@ -1,28 +1,44 @@
 name: "Build and Push Docker Image"
-description: "Build a single Docker image using docker buildx and optionally push to registry"
+description: "Build a Docker image using docker buildx bake and optionally push to GAR or ECR. The caller is responsible for logging in before setting push: true."
 inputs:
   service:
-    description: "Service name to build (from docker-compose)"
+    description: "Service name to build (from docker-compose). Accepts several, space-separated, which must be baked together when one is another's base image."
     required: true
   push:
-    description: "Whether to push image to registry"
+    description: "Whether to push the image to the registry"
     required: false
     default: "false"
   tag:
-    description: "Tag for the Docker image"
+    description: "Tag for the Docker image; interpolated into the compose file as $DEMO_VERSION"
     required: true
-  push-latest:
-    description: "Whether to also push image with 'latest' tag"
+  registry-type:
+    description: "Registry type: gar or ecr"
     required: false
-    default: "false"
+    default: "gar"
   registry:
-    description: "Docker registry URL"
+    description: "Docker registry URL (GAR builds); sets IMAGE_NAME env var consumed by the compose file"
     required: false
     default: "europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop"
+  ecr-registry:
+    description: "ECR registry host (ECR builds); sets ECR_REGISTRY env var consumed by the compose file"
+    required: false
+    default: "local"
+  provenance:
+    description: "Whether to attach a provenance attestation (ECR builds). Must be false for Lambda images, which reject multi-manifest images."
+    required: false
+    default: "true"
+  push-latest:
+    description: "Whether to also push the image with a 'latest' tag (GAR builds only)"
+    required: false
+    default: "false"
   compose-file:
-    description: "Path to docker compose file"
+    description: "Path to docker compose file, relative to working-directory"
     required: false
     default: "docker-compose.yml"
+  working-directory:
+    description: "Directory to run the build from; buildx bake resolves build contexts relative to it"
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -30,82 +46,87 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
 
-    - name: Retrieve GAR credentials
-      if: inputs.push == 'true'
+    - name: Build image
       shell: bash
-      run: |
-        echo "$GAR_CREDENTIALS" | docker login -u _json_key_base64 --password-stdin europe-docker.pkg.dev
-
-    - name: Build and push image
-      shell: bash
+      working-directory: ${{ inputs.working-directory }}
       env:
         SERVICE: ${{ inputs.service }}
-        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_TYPE: ${{ inputs.registry-type }}
         TAG: ${{ inputs.tag }}
         PUSH: ${{ inputs.push }}
-        PUSH_LATEST: ${{ inputs.push-latest }}
         COMPOSE_FILE: ${{ inputs.compose-file }}
+        DEMO_VERSION: ${{ inputs.tag }}
+        IMAGE_NAME: ${{ inputs.registry }}
+        ECR_REGISTRY: ${{ inputs.ecr-registry }}
+        PROVENANCE: ${{ inputs.provenance }}
       run: |
-        echo "Building image for service: $SERVICE with tag: $TAG"
-        
-        # Source the env files to get all required variables
-        set -a
-        source .env
-        source .env.override
-        set +a
-        
-        # Override with our values
-        export DEMO_VERSION="$TAG"
-        export IMAGE_NAME="$REGISTRY"
-        
-        # Determine push flags
-        PUSH_FLAG=""
-        if [ "$PUSH" == "true" ]; then
-          PUSH_FLAG="--push"
-          echo "Image will be pushed to registry"
+        set -euo pipefail
+
+        echo "Building $SERVICE (registry-type=$REGISTRY_TYPE, push=$PUSH)"
+
+        if [ "$REGISTRY_TYPE" == "ecr" ]; then
+          if [ "$PUSH" == "true" ]; then
+            PUSH_FLAG="--push"
+            PROVENANCE_FLAG="$PROVENANCE"
+            echo "Image will be pushed to ECR"
+          else
+            PUSH_FLAG=""
+            # Provenance attestations produce a manifest list that the local Docker
+            # daemon cannot import; they are also meaningless without a registry.
+            PROVENANCE_FLAG="false"
+            echo "Image will be built but not pushed"
+          fi
+
+          # Build metadata the product-catalog image stamps itself with
+          export DT_GITCOMMIT=$(git rev-parse --short HEAD)
+          export DT_BUILD="${GITHUB_REF_NAME//\//-}-$DT_GITCOMMIT-$(date -u +%Y%m%d)"
+
+          docker buildx bake \
+            --file "$COMPOSE_FILE" \
+            --provenance="$PROVENANCE_FLAG" \
+            --set "*.args.GIT_COMMIT=$(git rev-parse HEAD)" \
+            --set "*.args.GIT_ORIGIN=$(git config --get remote.origin.url)" \
+            $PUSH_FLAG \
+            $SERVICE
+
         else
-          PUSH_FLAG="--load"
-          echo "Image will be loaded locally"
+          if [ "$PUSH" == "true" ]; then
+            PUSH_FLAG="--push"
+            echo "Image will be pushed to GAR"
+          else
+            PUSH_FLAG="--load"
+            echo "Image will be loaded locally"
+          fi
+
+          docker buildx bake \
+            --file "$COMPOSE_FILE" \
+            --set "*.args.GIT_COMMIT=$(git rev-parse HEAD)" \
+            --set "*.args.GIT_ORIGIN=$(git config --get remote.origin.url)" \
+            $PUSH_FLAG \
+            "$SERVICE"
         fi
-        
-        # Build the single service using docker buildx bake
-        # This allows us to use the compose file directly with buildx
-        docker buildx bake \
-          --file "$COMPOSE_FILE" \
-          --set "*.args.GIT_COMMIT=$(git rev-parse HEAD)" \
-          --set "*.args.GIT_ORIGIN=$(git config --get remote.origin.url)" \
-          $PUSH_FLAG \
-          "$SERVICE"
-        
+
         echo "Successfully built $SERVICE with tag: $TAG"
 
     - name: Push image with latest tag
-      if: inputs.push == 'true' && inputs.push-latest == 'true'
+      if: inputs.registry-type == 'gar' && inputs.push == 'true' && inputs.push-latest == 'true'
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       env:
         SERVICE: ${{ inputs.service }}
-        REGISTRY: ${{ inputs.registry }}
-        TAG: ${{ inputs.tag }}
+        IMAGE_NAME: ${{ inputs.registry }}
+        DEMO_VERSION: "latest"
         COMPOSE_FILE: ${{ inputs.compose-file }}
       run: |
+        set -euo pipefail
+
         echo "Building and pushing $SERVICE with latest tag..."
-        
-        # Source the env files to get all required variables
-        set -a
-        source .env
-        source .env.override
-        set +a
-        
-        # Override with latest tag
-        export DEMO_VERSION="latest"
-        export IMAGE_NAME="$REGISTRY"
-        
-        # Build and push with latest tag
+
         docker buildx bake \
           --file "$COMPOSE_FILE" \
           --set "*.args.GIT_COMMIT=$(git rev-parse HEAD)" \
           --set "*.args.GIT_ORIGIN=$(git config --get remote.origin.url)" \
           --push \
           "$SERVICE"
-        
+
         echo "Successfully pushed $SERVICE with latest tag"

@@ -1,0 +1,24 @@
+x-runtime: &runtime
+  # Local-only AWS config; CI builds the image without it
+  env_file:
+    - path: .env.staging
+      required: false
+  volumes:
+    - ~/.aws/credentials:/home/node/.aws/credentials:ro
+
+services:
+  consumer-service-vulnerable:
+    <<: *runtime
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-vulnerable
+    build:
+      context: .
+      args:
+        VARIANT: vulnerable
+
+  consumer-service-healthy:
+    <<: *runtime
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-healthy
+    build:
+      context: .
+      args:
+        VARIANT: healthy

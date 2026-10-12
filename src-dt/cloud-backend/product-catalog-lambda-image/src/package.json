@@ -1,0 +1,75 @@
+{
+  "name": "productcatalogbackend",
+  "version": "1.0.0",
+  "description": "Opentelemetry Demo Product Catalog Admin Backend",
+  "main": "dist/Server.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "nodemon --watch Server",
+    "start": "ts-node --logError --pretty Server.ts",
+    "lint": "eslint ."
+  },
+  "author": "Gareth Emslie",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.782.0",
+    "@aws-sdk/credential-provider-node": "3.782.0",
+    "@aws-sdk/credential-providers": "3.782.0",
+    "@aws-sdk/rds-signer": "3.782.0",
+    "@aws-sdk/util-arn-parser": "3.723.0",
+    "@types/pino": "7.0.5",
+    "aws-xray-sdk": "3.9.0",
+    "aws4fetch": "1.0.20",
+    "cors": "2.8.5",
+    "dotenv": "16.4.7",
+    "express": "^4.21.2",
+    "jsonfile": "6.1.0",
+    "pg": "8.14.1",
+    "pg-hstore": "2.3.4",
+    "pino": "9.5.0",
+    "pino-http": "10.3.0",
+    "sequelize": "6.37.7",
+    "serverless-http": "3.2.0",
+    "uuid": "9.0.1"
+  },
+  "devDependencies": {
+    "@swc/core": "1.4.11",
+    "@swc/helpers": "0.5.8",
+    "@types/cors": "2.8.17",
+    "@types/express": "4.17.19",
+    "@types/express-pino-logger": "4.0.5",
+    "@types/node": "20.8.4",
+    "@types/uuid": "9.0.8",
+    "@typescript-eslint/eslint-plugin": "5.57.0",
+    "@typescript-eslint/parser": "5.57.0",
+    "eslint": "8.33.0",
+    "nodemon": "3.1.0",
+    "regenerator-runtime": "0.14.1",
+    "ts-node": "10.9.2",
+    "typescript": "5.2.2"
+  },
+  "nodemonConfig": {
+    "execMap": {
+      "ts": "ts-node"
+    },
+    "watch": [
+      ".",
+      "interfaces",
+      "routes",
+      "middleware",
+      "repostories",
+      "services"
+    ],
+    "verbose": true,
+    "ignore": [
+      ".git",
+      "dist",
+      "node_modules/**/node_modules"
+    ],
+    "delay": 2500,
+    "env": {
+      "NODE_ENV": "development"
+    },
+    "ext": "ts"
+  }
+}

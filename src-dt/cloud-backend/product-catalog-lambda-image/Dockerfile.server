@@ -1,0 +1,36 @@
+FROM node:22  AS nodebuild
+ARG DT_BUILD
+ARG gitcommit
+
+# set the working dir to server folder
+WORKDIR /usr/src/app
+
+# Copy the productcatalogbackend code 
+COPY ./src ./
+
+# install the nodejs dependencies & Build
+RUN npm install && \
+    npm run build
+
+FROM public.ecr.aws/lambda/nodejs:22
+ARG DT_BUILD
+ARG DT_GITCOMMIT
+ENV DT_BUILD=$DT_BUILD DT_GITCOMMIT=$DT_GITCOMMIT
+# Alternatively, you can pull the base image from Docker Hub: amazon/aws-lambda-nodejs:12
+ENV NODE_ENV=production
+ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/dynatrace
+ENV LAMBDA_TASK_ROOT=/var/task
+
+# Set the working directory to the lambdas task root
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Copy the server code
+COPY --from=nodebuild /usr/src/app/package*.json ./
+COPY --from=nodebuild /usr/src/app/certs  ./certs
+COPY --from=nodebuild /usr/src/app/dist  ./dist
+
+# install the nodejs dependencies
+RUN npm install --omit=dev 
+
+# Set the CMD to your handler (could also be done as a parameter override outside of the Dockerfile)
+CMD [ "dist/Server.handler" ]

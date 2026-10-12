@@ -1,0 +1,7 @@
+#!/bin/bash
+
+ENDPOINT="$BASE_URL/db/product"
+AUTH=$(echo -n "$USERNAME:$PASSWORD" | base64)
+
+
+curl -s $ENDPOINT -H "Authorization: Basic $AUTH" | jq "."

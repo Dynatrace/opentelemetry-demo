@@ -1,0 +1,113 @@
+name: "Package and Publish Lambda Zip"
+description: "Build a Lambda deployment package and optionally upload it to the artifacts S3 bucket"
+inputs:
+  service:
+    description: "Service name; used as the S3 key prefix"
+    required: true
+  runtime:
+    description: "Lambda runtime family: nodejs or python"
+    required: true
+  runtime-version:
+    description: "Runtime version to build the package with; must match the Lambda runtime in Terraform"
+    required: true
+  source-dir:
+    description: "Directory holding the function source"
+    required: true
+  version:
+    description: "Artifact version; used as the second S3 key segment"
+    required: true
+  push:
+    description: "Whether to upload the package to S3"
+    required: false
+    default: "false"
+  s3-bucket:
+    description: "Artifacts bucket the Lambdas read their packages from"
+    required: false
+    default: "astroshop-artifacts-bucket"
+
+outputs:
+  s3-key:
+    description: "Key the package was published under"
+    value: ${{ steps.package.outputs.s3-key }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      if: inputs.runtime == 'nodejs'
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.runtime-version }}
+
+    - name: Set up Python
+      if: inputs.runtime == 'python'
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.runtime-version }}
+
+    - name: Build deployment package
+      id: package
+      shell: bash
+      env:
+        SERVICE: ${{ inputs.service }}
+        RUNTIME: ${{ inputs.runtime }}
+        SOURCE_DIR: ${{ inputs.source-dir }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        # Assemble the package in a staging dir so the zip has the handler at its
+        # root, which is where the Lambda runtime looks for it
+        STAGE="$RUNNER_TEMP/lambda-$SERVICE"
+        rm -rf "$STAGE"
+        mkdir -p "$STAGE"
+
+        case "$RUNTIME" in
+          nodejs)
+            cp -r "$SOURCE_DIR"/. "$STAGE"/
+            npm --prefix "$STAGE" ci --omit=dev
+            ;;
+          python)
+            pip install --no-cache-dir -r "$SOURCE_DIR/requirements.txt" --target "$STAGE"
+            find "$SOURCE_DIR" -maxdepth 1 -name '*.py' -exec cp {} "$STAGE"/ \;
+            # setuptools has shipped without pkg_resources before now, which
+            # breaks the function at runtime rather than at build time
+            # https://github.com/pypa/setuptools/issues/5174
+            if [ ! -d "$STAGE/pkg_resources" ]; then
+              echo "pkg_resources missing from the package directory" >&2
+              exit 1
+            fi
+            ;;
+          *)
+            echo "Unsupported runtime: $RUNTIME" >&2
+            exit 1
+            ;;
+        esac
+
+        ZIP="$RUNNER_TEMP/$SERVICE-function.zip"
+        rm -f "$ZIP"
+        (cd "$STAGE" && zip -qr "$ZIP" .)
+
+        echo "zip-path=$ZIP" >> $GITHUB_OUTPUT
+        echo "s3-key=$SERVICE/$VERSION/function.zip" >> $GITHUB_OUTPUT
+        echo "Packaged $SERVICE ($(du -h "$ZIP" | cut -f1))"
+
+    - name: Publish package to S3
+      if: inputs.push == 'true'
+      shell: bash
+      env:
+        BUCKET: ${{ inputs.s3-bucket }}
+        S3_KEY: ${{ steps.package.outputs.s3-key }}
+        ZIP_PATH: ${{ steps.package.outputs.zip-path }}
+      run: |
+        set -euo pipefail
+
+        # The bucket has no object versioning and the key prefix is the version,
+        # so a published prefix must never be overwritten
+        if aws s3api head-object --bucket "$BUCKET" --key "$S3_KEY" >/dev/null 2>&1; then
+          echo "Refusing to overwrite existing artifact s3://$BUCKET/$S3_KEY" >&2
+          exit 1
+        fi
+
+        aws s3 cp "$ZIP_PATH" "s3://$BUCKET/$S3_KEY"
+        echo "Published s3://$BUCKET/$S3_KEY"

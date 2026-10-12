@@ -1,0 +1,24 @@
+image: europe-docker.pkg.dev/dynatrace-demoability/docker/cloud-backend-load-generator
+tag: 1.2.0
+resources:
+  requests:
+    cpu: 50m
+    memory: 50Mi
+  limits:
+    cpu: 50m
+    memory: 50Mi
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: ""
+    kind: ClusterSecretStore
+  remoteKey: ""
+
+envs:
+  triggerErrorIntervalS:
+    name: TRIGGER_ERROR_INTERVAL_S
+    value: "120"
+  triggerWarningIntervalS:
+    name: TRIGGER_WARNING_INTERVAL_S
+    value: "30"
