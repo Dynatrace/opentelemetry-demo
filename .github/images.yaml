@@ -5,7 +5,7 @@
 #   gar - Google Artifact Registry, logged in by the build action itself
 #   ecr - Amazon ECR, needs OIDC credentials and an ECR login first
 #
-# A `pr` block overrides fields on pull requests, which hold no AWS credentials.
+# A `pr` block overrides fields on pull requests.
 images:
   - service: consumer-service-vulnerable
     directory: src-dt/consumer-service
@@ -39,8 +39,8 @@ images:
 
   # All four bake together: the stage variants use the base image as an
   # additional build context, which only resolves within one run. The variants
-  # need the OneAgent extension, fetched from AWS, so pull requests build only
-  # the base image.
+  # need the OneAgent extension, fetched from AWS, so the build authenticates
+  # to AWS even when it does not push.
   - service: >-
       product-catalog-lambda-image
       product-catalog-lambda-image-dev
@@ -51,6 +51,3 @@ images:
     registry-type: ecr
     provenance: "false"
     needs-oneagent-layer: "true"
-    pr:
-      service: product-catalog-lambda-image
-      needs-oneagent-layer: "false"

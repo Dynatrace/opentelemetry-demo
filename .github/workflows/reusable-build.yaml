@@ -52,7 +52,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Authenticate to AWS
-        if: inputs.push && matrix.registry-type == 'ecr'
+        if: (inputs.push && matrix.registry-type == 'ecr') || matrix.needs-oneagent-layer == 'true'
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE }}
