@@ -22,28 +22,22 @@
 # Docker build configuration for different deployment stages
 stage:
   dev:
+    api_url: "https://fxz0998d.dev.dynatracelabs.com"
     agent:
-      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.351.0.20261012-180439"
-      region: us-east-1
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
 
   hardening:
+    api_url: "https://wyq34449.sprint.dynatracelabs.com"
     agent:
-      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.347.58.20261012-103723"
-      region: us-east-1
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
 
   prod:
+    api_url: "https://wyq34449.sprint.dynatracelabs.com"
     agent:
-      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.345.87.20261002-113835"
-      region: us-east-1
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
 
 # AWS configuration
 aws:
