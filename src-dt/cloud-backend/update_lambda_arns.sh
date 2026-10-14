@@ -1,31 +1,41 @@
 #!/bin/bash
 
-set -euo pipefail
+# Updates the OneAgent Lambda layer ARNs in config.yaml for every stage.
+#
+# Per-stage platform token (scope fleet-management:oneagents:download) is read from
+# DT_INSTALL_TOKEN_<STAGE>, e.g. DT_INSTALL_TOKEN_DEV, DT_INSTALL_TOKEN_HARDENING.
 
 # Functions
 
 get_lambda_oneagent_layer_arn() {
     local env=$1
     local techtype=$2
-    local api_url=$(yq e ".${env}.api_url" "$CONFIG_FILE")
-    
-    layer_arn=$(curl -s -H "Authorization: Bearer $DEV_DT_INSTALL_TOKEN" \
-        "$api_url/api/v1/deployment/lambda/layer?arch=x86&techtype=$techtype&region=us-east-1&withCollector=included" \
-        | jq -r .arns[].arn)
+    local api_url token_var
 
-    echo ${layer_arn}
+    api_url=$(yq e ".stage.${env}.api_url" "$CONFIG_FILE")
+    token_var="DT_INSTALL_TOKEN_$(echo "$env" | tr '[:lower:]' '[:upper:]')"
+
+    curl -sS --fail-with-body -H "Authorization: Bearer ${!token_var}" \
+        "$api_url/api/v1/deployment/lambda/layer?arch=x86&techtype=$techtype&region=us-east-1&withCollector=included" \
+        | jq -er '.arns[0].arn'
 }
 
 # Main
-export CONFIG_FILE=${CONFIG_FILE:-"../config.yaml"}
+
+set -euo pipefail
+
+echo "Updating OneAgent Lambda layer ARNs with the latest versions for all stages..."
+
+export CONFIG_FILE=${CONFIG_FILE:-"$(dirname "$0")/config.yaml"}
 
 for STAGE in $(yq -r '.stage | keys | .[]' "$CONFIG_FILE"); do
-    LAYER_ARN=$(get_lambda_oneagent_layer_arn "$STAGE" "python")
-    yq e -i ".${STAGE}.agent.arn_layer_pattern_python = \"$LAYER_ARN\"" "$CONFIG_FILE"
-
-    LAYER_ARN=$(get_lambda_oneagent_layer_arn "$STAGE" "nodejs")
-    yq e -i ".${STAGE}.agent.arn_layer_pattern_nodejs = \"$LAYER_ARN\"" "$CONFIG_FILE"
+    for TECH in python nodejs; do
+        LAYER_ARN=$(get_lambda_oneagent_layer_arn "$STAGE" "$TECH")
+        echo "$STAGE|$TECH = $LAYER_ARN"
+        yq e -i ".stage.${STAGE}.agent.arn_layer_pattern_${TECH} = \"$LAYER_ARN\"" "$CONFIG_FILE"
+    done
 done
 
+echo ""
 echo "Updated config.yaml with latest Dynatrace OneAgent Lambda layer ARNs for all stages."
-git diff "$CONFIG_FILE"
+git --no-pager diff "$CONFIG_FILE"
