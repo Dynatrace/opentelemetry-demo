@@ -24,18 +24,18 @@ stage:
   dev:
     api_url: "https://fxz0998d.dev.dynatracelabs.com"
     agent:
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_1_351_0_20261013-210733_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_1_351_0_20261013-210733_with_collector_python_x86:1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_351_0_20261013-210733_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_351_0_20261013-210733_with_collector_python_x86:1
   hardening:
     api_url: "https://wyq34449.sprint.dynatracelabs.com"
     agent:
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_1_349_55_20261013-141856_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_1_349_55_20261013-141856_with_collector_python_x86:1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_349_55_20261013-141856_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_349_55_20261013-141856_with_collector_python_x86:1
   prod:
     api_url: "https://wkf10640.live.dynatrace.com"
     agent:
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_1_347_53_20261007-171544_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_1_347_53_20261007-171544_with_collector_python_x86:1
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_347_53_20261007-171544_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_347_53_20261007-171544_with_collector_python_x86:1
 # AWS configuration
 aws:
   region: us-east-1
