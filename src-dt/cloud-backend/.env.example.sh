@@ -1,3 +1,7 @@
-export DT_INSTALL_TOKEN_DEV="dt0s16..."
-export DT_INSTALL_TOKEN_HARDENING="dt0s16..."
-export DT_INSTALL_TOKEN_PROD="dt0s16..."
+# Copy to .env.sh (git-ignored), fill in and `source` it before ./update_lambda_arns.sh
+export DT_API_URL_DEV=https://...
+export DT_API_URL_HARDENING=https://...
+export DT_API_URL_PROD=https://...
+export DT_INSTALL_TOKEN_DEV=
+export DT_INSTALL_TOKEN_HARDENING=
+export DT_INSTALL_TOKEN_PROD=

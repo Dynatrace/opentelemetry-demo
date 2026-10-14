@@ -4,6 +4,8 @@
 #
 # Per-stage platform token (scope fleet-management:oneagents:download) is read from
 # DT_INSTALL_TOKEN_<STAGE>, e.g. DT_INSTALL_TOKEN_DEV, DT_INSTALL_TOKEN_HARDENING.
+# The tenant URL (classic API domain) comes from DT_API_URL_<STAGE>, e.g. DT_API_URL_DEV.
+# Both are kept out of git; see .env.example.sh.
 #
 # Each Dynatrace layer is copied into the currently connected AWS account (us-east-1)
 # and config.yaml gets the ARN of the copy. A layer name already present in the
@@ -14,13 +16,15 @@
 get_lambda_oneagent_layer_arn() {
     local env=$1
     local techtype=$2
-    local api_url token_var
+    local api_url_var token_var
 
-    api_url=$(yq e ".stage.${env}.api_url" "$CONFIG_FILE")
-    token_var="DT_INSTALL_TOKEN_$(echo "$env" | tr '[:lower:]' '[:upper:]')"
+    local env_upper
+    env_upper=$(echo "$env" | tr '[:lower:]' '[:upper:]')
+    api_url_var="DT_API_URL_${env_upper}"
+    token_var="DT_INSTALL_TOKEN_${env_upper}"
 
     curl -sS --fail-with-body -H "Authorization: Bearer ${!token_var}" \
-        "$api_url/api/v1/deployment/lambda/layer?arch=x86&techtype=$techtype&region=us-east-1&withCollector=included" \
+        "${!api_url_var}/api/v1/deployment/lambda/layer?arch=x86&techtype=$techtype&region=us-east-1&withCollector=included" \
         | jq -er '.arns[0].arn'
 }
 

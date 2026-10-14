@@ -9,7 +9,7 @@ Astroshop cloud-backend services, built and deployed per stage (`dev`, `hardenin
 | `data-processing`, `processed-data-persistence` | Data pipeline services. |
 
 `compose.yaml` builds the images, `config.yaml` holds the per-stage build configuration
-(Dynatrace tenant `api_url` and the OneAgent layer ARNs).
+(the OneAgent layer ARNs).
 
 ## Updating the OneAgent layer for product-catalog-lambda-image
 
@@ -25,9 +25,12 @@ The image bundles the OneAgent Lambda layer, which the build reads from `config.
 ### Steps
 
 1. Log in to AWS and check the account: `aws sts get-caller-identity`.
-2. Export a Dynatrace platform token per stage, scope `fleet-management:oneagents:download`
-   (`hardening` and `prod` can use tokens from their own tenants). See `.env.example.sh`:
+2. Export the tenant URL and a platform token (scope `fleet-management:oneagents:download`) per
+   stage. They are not stored in git: copy `.env.example.sh` to `.env.sh` (git-ignored) and `source` it:
    ```bash
+   export DT_API_URL_DEV=...        # classic API domain, e.g. https://<tenant>.live.dynatrace.com
+   export DT_API_URL_HARDENING=...
+   export DT_API_URL_PROD=...
    export DT_INSTALL_TOKEN_DEV=...
    export DT_INSTALL_TOKEN_HARDENING=...
    export DT_INSTALL_TOKEN_PROD=...
