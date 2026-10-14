@@ -23,28 +23,16 @@
 stage:
   dev:
     agent:
-      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.351.0.20261012-180439"
-      region: us-east-1
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
-
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_351_0_20261013-210733_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_351_0_20261013-210733_with_collector_python_x86:1
   hardening:
     agent:
-      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.347.58.20261012-103723"
-      region: us-east-1
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:657959507023:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
-
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_349_55_20261013-141856_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_349_55_20261013-141856_with_collector_python_x86:1
   prod:
     agent:
-      # GET <tenantURL>/platform/classic/environment-api/v1/deployment/installer/agent/unix/default/latest/metainfo?arch=x86
-      version: "1.345.87.20261002-113835"
-      region: us-east-1
-      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_nodejs_x86:1
-      arn_layer_pattern_python: arn:aws:lambda:us-east-1:585768157899:layer:Dynatrace_OneAgent_<VERSION>_with_collector_python_x86:1
-
+      arn_layer_pattern_nodejs: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_347_53_20261007-171544_with_collector_nodejs_x86:1
+      arn_layer_pattern_python: arn:aws:lambda:us-east-1:246186168471:layer:Dynatrace_OneAgent_1_347_53_20261007-171544_with_collector_python_x86:1
 # AWS configuration
 aws:
   region: us-east-1

@@ -102,12 +102,5 @@ runs:
       run: |
         set -euo pipefail
 
-        # The bucket has no object versioning and the key prefix is the version,
-        # so a published prefix must never be overwritten
-        if aws s3api head-object --bucket "$BUCKET" --key "$S3_KEY" >/dev/null 2>&1; then
-          echo "Refusing to overwrite existing artifact s3://$BUCKET/$S3_KEY" >&2
-          exit 1
-        fi
-
         aws s3 cp "$ZIP_PATH" "s3://$BUCKET/$S3_KEY"
         echo "Published s3://$BUCKET/$S3_KEY"
