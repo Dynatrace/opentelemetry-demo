@@ -1,0 +1,3 @@
+export DT_INSTALL_TOKEN_DEV="dt0s16..."
+export DT_INSTALL_TOKEN_HARDENING="dt0s16..."
+export DT_INSTALL_TOKEN_PROD="dt0s16..."

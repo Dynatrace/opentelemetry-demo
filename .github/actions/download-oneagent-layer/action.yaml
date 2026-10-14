@@ -2,7 +2,7 @@ name: "Download OneAgent Lambda Extension"
 description: "Fetch the Dynatrace OneAgent Lambda layer for each stage and unpack it where the product-catalog image build expects it"
 inputs:
   config-file:
-    description: "Config file holding the per-stage agent version, region and layer ARN pattern"
+    description: "Config file holding the per-stage layer ARN (stage.<name>.agent.arn_layer_pattern_nodejs)"
     required: false
     default: "src-dt/cloud-backend/config.yaml"
   target-dir:
@@ -24,12 +24,10 @@ runs:
         # Dockerfile.oneagent does `COPY ./DynatraceOneAgentExtension/$STAGE_NAME/ /opt/`,
         # so every stage the compose file builds needs its own subdirectory here.
         for STAGE in $(yq -r '.stage | keys | .[]' "$CONFIG_FILE"); do
-          ARN_PATTERN=$(yq -r ".stage.${STAGE}.agent.arn_layer_pattern_nodejs" "$CONFIG_FILE")
-          AGENT_VERSION=$(yq -r ".stage.${STAGE}.agent.version" "$CONFIG_FILE")
-          LAYER_REGION=$(yq -r ".stage.${STAGE}.agent.region" "$CONFIG_FILE")
+          ARN=$(yq -r ".stage.${STAGE}.agent.arn_layer_pattern_nodejs" "$CONFIG_FILE")
 
-          # The ARN spells the agent version with underscores
-          ARN="${ARN_PATTERN/<VERSION>/${AGENT_VERSION//./_}}"
+          # arn:aws:lambda:<region>:<account>:layer:Dynatrace_OneAgent_1_351_0_<build>_<variant>:<n>
+          LAYER_REGION=$(cut -d: -f4 <<<"$ARN")
 
           echo "==> $STAGE: $AGENT_VERSION"
           LAYER_URL=$(aws --region "$LAYER_REGION" lambda get-layer-version-by-arn \
@@ -42,12 +40,4 @@ runs:
           curl -fsSL "$LAYER_URL" --output "$ARCHIVE"
           unzip -qq -o "$ARCHIVE" -d "$TARGET_DIR/$STAGE/"
           rm -f "$ARCHIVE"
-
-          # The layer ships the version it was built from; make sure we unpacked
-          # what config.yaml actually asked for
-          UNPACKED=$(cat "$TARGET_DIR/$STAGE/dynatrace_layer/agent/installer.version")
-          if [ "$UNPACKED" != "$AGENT_VERSION" ]; then
-            echo "Layer for $STAGE contains agent $UNPACKED, expected $AGENT_VERSION" >&2
-            exit 1
-          fi
         done
