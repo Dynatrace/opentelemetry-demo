@@ -29,7 +29,7 @@ runs:
           # arn:aws:lambda:<region>:<account>:layer:Dynatrace_OneAgent_1_351_0_<build>_<variant>:<n>
           LAYER_REGION=$(cut -d: -f4 <<<"$ARN")
 
-          echo "==> $STAGE: $AGENT_VERSION"
+          echo "==> $STAGE:"
           LAYER_URL=$(aws --region "$LAYER_REGION" lambda get-layer-version-by-arn \
             --arn "$ARN" --query 'Content.Location' --output text)
 
@@ -41,3 +41,7 @@ runs:
           unzip -qq -o "$ARCHIVE" -d "$TARGET_DIR/$STAGE/"
           rm -f "$ARCHIVE"
         done
+
+        echo ""
+        echo "==> Unpacked layers:"
+        ls -al "$TARGET_DIR"
