@@ -30,7 +30,7 @@ spec:
   - name: It should call Charge method and receive a gRPC error
     selector: span[tracetest.span.type="rpc" name="grpc.oteldemo.PaymentService/Charge" rpc.system="grpc" rpc.method="Charge" rpc.service="oteldemo.PaymentService"]
     assertions:
-    - attr:grpc.error_message contains "Sorry, we cannot process UnionPay credit cards."
+    - attr:grpc.error_message contains "Sorry, we cannot process UnionPay credit cards. Only VISA or MasterCard is accepted"
   - name: It should return a return an gRPC error code to the caller
     selector: span[tracetest.span.type="general" name="Tracetest trigger"]
     assertions:
