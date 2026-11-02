@@ -101,7 +101,6 @@
         },
         "on": {
           "mastercard": "Mastercard",
-          "union_pay": "UnionPay",
           "visa": "Visa"
         }
       }
