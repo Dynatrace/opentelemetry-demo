@@ -64,10 +64,7 @@ runs:
 
         echo "Building $SERVICE (registry-type=$REGISTRY_TYPE, push=$PUSH)"
 
-        # Load the Dynatrace Dockerfile overrides (*_DOCKERFILE), as `make build-multiplatform`
-        # does. buildx bake does not read .env.override on its own. The override also sets
-        # IMAGE_NAME, so restore the CI-provided registry afterwards. DEMO_VERSION (the tag)
-        # is not in the override and keeps the value from calc-version.
+        # Load the Dynatrace Dockerfile overrides (*_DOCKERFILE)
         if [ -f .env.override ]; then
           ci_image_name="$IMAGE_NAME"
           set -a; . ./.env.override; set +a
