@@ -16,7 +16,11 @@ FROM base
 WORKDIR /usr/src/app/
 COPY --from=builder /reqs /usr/local
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
-RUN playwright install --with-deps chromium
+# libatomic1: Playwright's bundled node needs it before --with-deps can run
+RUN apt-get -qq update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY ./dynatrace/load-generator/src/ .
 
