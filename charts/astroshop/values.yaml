@@ -62,7 +62,7 @@ opentelemetry-demo:
         - name: OTEL_LOGS_EXPORTER
           value: "none" # 'console', 'none', 'otlp'
         - name: OTEL_METRICS_EXPORTER
-          value: "console,otlp" # 'console', 'none', 'otlp'
+          value: "otlp" # 'console', 'none', 'otlp'
         - name: DB_CONNECTION_STRING
           value: Host=postgresql.astroshop.svc.cluster.local;Username=otelu;Password=otelp;Database=otel
       resources:
