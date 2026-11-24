@@ -36,6 +36,10 @@ on:
 jobs:
   calc-version:
     uses: ./.github/workflows/reusable-calc-version.yaml
+    with:
+      # a manual run releases from the branch it was started on (patching an older release, see
+      # dynatrace/docs/versioning.md); pushes always release from main
+      release-branch: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'main' }}
 
   build:
     if: needs.calc-version.outputs.already-released == 'false'
