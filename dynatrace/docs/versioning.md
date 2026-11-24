@@ -37,9 +37,18 @@ Put a marker in the commit message (for squash merges: in the PR title / squash 
 
 The highest bump among the commits since the last tag wins.
 
-> `+semver: none` / `skip` is still recognised, but it **does not suppress a release on `main`**: the `main` default
-> (minor) is a floor and markers can only raise it. A merge to `main` that touches the paths in
-> `build-on-main.yaml` always releases.
+> `+semver: none` / `skip` no longer lowers the bump on `main` (the minor default is a floor), but `build-on-main`
+> honors it explicitly: a **push** whose commit message contains `+semver: skip` (or `+semver:skip`) does not build
+> and does not release. Use it for changes that must not produce a new version (docs, CI-only changes). For a squash
+> merge put it in the PR title or the squash message. Manual runs ignore it.
+
+## Branch names
+
+- `main` / `master`: release branch.
+- Maintenance branches for older versions: **`patch/<major>.<minor>`**, e.g. `patch/0.8`.
+- Feature branches: any name, `feature/*` included.
+- Do **not** use `hotfix/*`, `release/*`, `support/*` or `develop`: these are GitVersion built-in branch types that
+  expect `main` as source branch, and the run fails with `No base versions determined on the current branch`.
 
 ## Examples
 
@@ -76,27 +85,27 @@ The build pushes images and charts tagged `1.2.1-my-feature-016cf10` and stops t
 Release `v0.8.0` is long gone and `main` is at `v1.1.0`. A fix is needed for the `0.8` line only.
 
 ```bash
-# 1. branch from the release tag. Any name except main/master works.
+# 1. branch from the release tag. Name it patch/<major>.<minor>, see "Branch names" below.
 git fetch --tags
-git checkout -b maint-0.8 v0.8.0
+git checkout -b patch/0.8 v0.8.0
 
 # 2. commit the fix (a commit that exists on the branch only, or cherry-picked from main) and push
 git commit -am "fix: ..."
-git push -u origin maint-0.8
+git push -u origin patch/0.8
 
-# 3. run the release manually: Actions -> "Build and push astroshop" -> Run workflow -> Branch: maint-0.8,
+# 3. run the release manually: Actions -> "Build and push astroshop" -> Run workflow -> Branch: patch/0.8,
 #    tick "release"
-gh workflow run build-on-main.yaml --ref maint-0.8 -f release=true
+gh workflow run build-on-main.yaml --ref patch/0.8 -f release=true
 ```
 
-Result: `v0.8.1` (tag and release created on `maint-0.8`). Repeat steps 2-3 for `v0.8.2`, and so on. `main` is not
+Result: `v0.8.1` (tag and release created on `patch/0.8`). Repeat steps 2-3 for `v0.8.2`, and so on. `main` is not
 affected: its next release is still `v1.2.0`.
 
 | Run | Branch | Version |
 |---|---|---|
 | push | `main` | `v1.1.0` |
-| manual | `maint-0.8` | `v0.8.1` |
-| manual | `maint-0.8` | `v0.8.2` |
+| manual | `patch/0.8` | `v0.8.1` |
+| manual | `patch/0.8` | `v0.8.2` |
 | push | `main` | `v1.2.0` |
 
 To make a new minor out of a maintenance branch (`v0.9.0`) use `+semver: minor` in one of its commits.
