@@ -11,6 +11,11 @@ on:
       - charts/**
       - dynatrace/**
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Create a tag + GitHub release from this branch (patch an older version). Leave unchecked for a dev build."
+        type: boolean
+        default: false
 
   workflow_call:
     secrets:
@@ -37,9 +42,10 @@ jobs:
   calc-version:
     uses: ./.github/workflows/reusable-calc-version.yaml
     with:
-      # a manual run releases from the branch it was started on (patching an older release, see
-      # dynatrace/docs/versioning.md); pushes always release from main
-      release-branch: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'main' }}
+      # manual run with release=true releases from the branch it was started on (patching an older release);
+      # without it a manual run on another branch is a dev build: pushes images, no tag or release.
+      # Pushes always release from main. See dynatrace/docs/versioning.md
+      release-branch: ${{ github.event_name == 'workflow_dispatch' && inputs.release && github.ref_name || 'main' }}
 
   build:
     if: needs.calc-version.outputs.already-released == 'false'
