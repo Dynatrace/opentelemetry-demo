@@ -147,5 +147,6 @@ Outputs:
 | `is-release` | `true` when the current branch equals `release-branch` |
 | `already-released` | `true` when tag `v<version>` exists, skip build and publish |
 
-Pin the action to a tag. The `main` minor-by-default rule applies from `v0.5.0`; older tags keep the previous
+Pin the action to a tag (`@v0.5.0`) for reproducible versions, or to `@main` to always get the latest rules.
+The `main` minor-by-default rule and the maintenance-branch handling apply from `v0.5.0`; older tags keep the previous
 behaviour (patch by default, `main` could pick up an unrelated newest tag on maintenance branches).
