@@ -112,7 +112,7 @@ jobs:
         with:
           fetch-depth: 0            # all tags and history are required
       - id: v
-        uses: Dynatrace/opentelemetry-demo/.github/actions/calc-version@v0.4.17
+        uses: Dynatrace/opentelemetry-demo/.github/actions/calc-version@v0.5.0
         with:
           # releases happen from this branch; use ref_name for manual patch releases
           release-branch: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'main' }}
@@ -126,5 +126,5 @@ Outputs:
 | `is-release` | `true` when the current branch equals `release-branch` |
 | `already-released` | `true` when tag `v<version>` exists, skip build and publish |
 
-Pin the action to a tag. The `main` minor-by-default rule applies from `v0.4.17`; older tags keep the previous
+Pin the action to a tag. The `main` minor-by-default rule applies from `v0.5.0`; older tags keep the previous
 behaviour (patch by default, `main` could pick up an unrelated newest tag on maintenance branches).
