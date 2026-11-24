@@ -34,18 +34,44 @@ runs:
         label: "{BranchName:l}"
         major-version-bump-message: '\+semver:\s?(breaking|major)'
         minor-version-bump-message: '\+semver:\s?(feature|minor)'
-        patch-version-bump-message: '.*'
+        patch-version-bump-message: '\+semver:\s?(fix|patch)'
         no-bump-message: '\+semver:\s?(none|skip)'
         branches:
           main:
             label: main
-            increment: None
+            increment: Minor
           pull-request:
             label: pr{Number}
+          # Branches other than main/PR (e.g. maintenance branches cut from an old tag) only use tags
+          # reachable from their own history, never tags that exist only on main.
+          feature:
+            increment: Patch
+            source-branches: []
+          unknown:
+            increment: Patch
+            source-branches: []
         EOF
         echo "GITVERSION_CONFIG=$CONFIG_FILE" >> $GITHUB_ENV
         echo "Created GitVersion config:"
         cat "$CONFIG_FILE"
+
+    # GitVersion falls back to main as source branch for any branch without source branches and then uses
+    # tags that exist only on main (e.g. a branch cut from tag 0.1.7 would get 1.0.1 from main's v1.0.0).
+    # On builds of any other branch (including a maintenance branch that is passed as release-branch) hide
+    # main/master so only tags reachable from the branch itself are used.
+    - name: Hide main branch from GitVersion
+      shell: bash
+      run: |
+        if [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+          CURRENT="${GITHUB_REF#refs/heads/}"
+          if [[ "$CURRENT" != "main" && "$CURRENT" != "master" ]]; then
+            for b in main master; do
+              git update-ref -d "refs/remotes/origin/$b" || true
+              git update-ref -d "refs/heads/$b" || true
+            done
+            echo "Hid main/master refs; versioning from branch history only"
+          fi
+        fi
 
     - name: Determine Version
       id: version
