@@ -99,11 +99,11 @@ jobs:
           - service: raw-data-persistence
             runtime: nodejs
             runtime-version: "22"
-            source-dir: src-dt/cloud-backend/raw-data-persistence/src
+            source-dir: dynatrace/cloud-backend/raw-data-persistence/src
           - service: reporting
             runtime: python
             runtime-version: "3.12"
-            source-dir: src-dt/cloud-backend/reporting/src
+            source-dir: dynatrace/cloud-backend/reporting/src
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
