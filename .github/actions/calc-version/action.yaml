@@ -57,14 +57,20 @@ runs:
 
     # GitVersion falls back to main as source branch for any branch without source branches and then uses
     # tags that exist only on main (e.g. a branch cut from tag 0.1.7 would get 1.0.1 from main's v1.0.0).
-    # On non-release branch builds hide main so only tags reachable from the branch itself are used.
-    - name: Hide release branch from GitVersion
+    # On builds of any other branch (including a maintenance branch that is passed as release-branch) hide
+    # main/master so only tags reachable from the branch itself are used.
+    - name: Hide main branch from GitVersion
       shell: bash
       run: |
-        if [[ "${GITHUB_REF}" == refs/heads/* && "${GITHUB_REF#refs/heads/}" != "${{ inputs.release-branch }}" ]]; then
-          git update-ref -d "refs/remotes/origin/${{ inputs.release-branch }}" || true
-          git update-ref -d "refs/heads/${{ inputs.release-branch }}" || true
-          echo "Hid ${{ inputs.release-branch }} refs; versioning from branch history only"
+        if [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+          CURRENT="${GITHUB_REF#refs/heads/}"
+          if [[ "$CURRENT" != "main" && "$CURRENT" != "master" ]]; then
+            for b in main master; do
+              git update-ref -d "refs/remotes/origin/$b" || true
+              git update-ref -d "refs/heads/$b" || true
+            done
+            echo "Hid main/master refs; versioning from branch history only"
+          fi
         fi
 
     - name: Determine Version
