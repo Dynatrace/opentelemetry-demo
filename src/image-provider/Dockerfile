@@ -1,7 +1,7 @@
 # Copyright The OpenTelemetry Authors
 # SPDX-License-Identifier: Apache-2.0
 
-FROM nginxinc/nginx-unprivileged:1.29.0-alpine3.22-otel
+FROM nginx/nginx-unprivileged:1.31.10-alpine3.24-otel
 
 # CVE-2026-111497: brotli-libs (pulled in by libcurl, libfreetype) fixed in 1.1.1-r0
 USER root
