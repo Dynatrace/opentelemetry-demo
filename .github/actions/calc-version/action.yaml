@@ -14,8 +14,11 @@ outputs:
     description: "Whether this is a release build (true/false)"
     value: ${{ steps.check-release.outputs.is-release }}
   already-released:
-    description: "Whether this version has already been released (true/false). If true, further build/publish steps can be skipped."
+    description: "DEPRECATED, use skip-build. Whether this version has already been released (true/false)."
     value: ${{ steps.check-tag.outputs.already-released }}
+  skip-build:
+    description: "true when build/publish/release must be skipped: the version is already released, or (push events only) the head commit message contains '+semver: skip' or '+semver: none'."
+    value: ${{ steps.check-skip.outputs.skip-build }}
 
 runs:
   using: composite
@@ -122,12 +125,37 @@ runs:
           echo "Version $VERSION has not been released yet."
         fi
 
+    # Commit message is only available on push (github.event.head_commit); manual runs and PR builds ignore the marker.
+    # Passed via env, never interpolated into the script.
+    - name: Check if build should be skipped
+      id: check-skip
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        ALREADY_RELEASED: ${{ steps.check-tag.outputs.already-released }}
+      run: |
+        SKIP=false
+        REASON="not skipped"
+        if [ "$ALREADY_RELEASED" = "true" ]; then
+          SKIP=true
+          REASON="version already released"
+        elif [ "$EVENT_NAME" = "push" ] && printf '%s' "$COMMIT_MESSAGE" | grep -qiE '\+semver:\s?(skip|none)'; then
+          SKIP=true
+          REASON="+semver: skip/none marker in commit message"
+        fi
+        echo "skip-build=$SKIP" >> $GITHUB_OUTPUT
+        echo "Skip build: $SKIP ($REASON)"
+        echo "SKIP_REASON=$REASON" >> $GITHUB_ENV
+
     - name: Show version
       shell: bash
       run: |
         echo "Version: ${{ steps.final-version.outputs.version }}"
         echo "Is release: ${{ steps.check-release.outputs.is-release }}"
         echo "Version already released: ${{ steps.check-tag.outputs.already-released }}"
+        echo "Skip build: ${{ steps.check-skip.outputs.skip-build }} ($SKIP_REASON)"
         echo "### Version: ${{ steps.final-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         echo "**Is release:** ${{ steps.check-release.outputs.is-release }}" >> $GITHUB_STEP_SUMMARY
         echo "**Version already released:** ${{ steps.check-tag.outputs.already-released }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Skip build:** ${{ steps.check-skip.outputs.skip-build }} ($SKIP_REASON)" >> $GITHUB_STEP_SUMMARY

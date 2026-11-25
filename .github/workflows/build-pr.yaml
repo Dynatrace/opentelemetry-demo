@@ -35,7 +35,7 @@ jobs:
     uses: ./.github/workflows/reusable-calc-version.yaml
 
   build:
-    if: needs.calc-version.outputs.already-released == 'false'
+    if: needs.calc-version.outputs.skip-build == 'false'
     needs: calc-version
     permissions:
       id-token: write
