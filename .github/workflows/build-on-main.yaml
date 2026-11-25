@@ -48,11 +48,8 @@ jobs:
       release-branch: ${{ github.event_name == 'workflow_dispatch' && inputs.release && github.ref_name || 'main' }}
 
   build:
-    # a push whose commit message has "+semver: skip" does not build or release
-    if: >-
-      needs.calc-version.outputs.already-released == 'false' &&
-      !contains(github.event.head_commit.message, '+semver: skip') &&
-      !contains(github.event.head_commit.message, '+semver:skip')
+    # skip-build: version already released, or a push whose commit message has "+semver: skip" / "+semver: none"
+    if: needs.calc-version.outputs.skip-build == 'false'
     needs: calc-version
     permissions:
       id-token: write

@@ -37,10 +37,11 @@ Put a marker in the commit message (for squash merges: in the PR title / squash 
 
 The highest bump among the commits since the last tag wins.
 
-> `+semver: none` / `skip` no longer lowers the bump on `main` (the minor default is a floor), but `build-on-main`
-> honors it explicitly: a **push** whose commit message contains `+semver: skip` (or `+semver:skip`) does not build
-> and does not release. Use it for changes that must not produce a new version (docs, CI-only changes). For a squash
-> merge put it in the PR title or the squash message. Manual runs ignore it.
+> `+semver: none` / `skip` no longer lowers the bump on `main` (the minor default is a floor). Instead the action sets
+> the output `skip-build=true` when the head commit message of a **push** contains `+semver: skip` or `+semver: none`
+> (case-insensitive, with or without the space), and `build-on-main` does not build or release. Use it for changes that
+> must not produce a new version (docs, CI-only changes). For a squash merge put it in the PR title or the squash
+> message. Manual runs and PR builds ignore it.
 
 ## Branch names
 
@@ -115,7 +116,7 @@ Notes:
 - The branch must contain the workflow change that passes `release-branch` for `workflow_dispatch` (cut it from a tag
   that has it, or cherry-pick it).
 - A manual run on a non-`main` branch releases only with `release=true`; without it, it is a dev build.
-- If the computed version already exists (`already-released`) the build is skipped. This happens when a tag
+- If the computed version already exists the build is skipped (`skip-build=true`). This happens when a tag
   already sits on the same commit as the base tag; add a commit with a marker to move on.
 
 ## Using the action in another repository
@@ -127,7 +128,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
       is-release: ${{ steps.v.outputs.is-release }}
-      already-released: ${{ steps.v.outputs.already-released }}
+      skip-build: ${{ steps.v.outputs.skip-build }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -145,7 +146,8 @@ Outputs:
 |---|---|
 | `version` | the version; plain `1.2.3` on a release build, `1.2.3-<label>-<sha>` otherwise |
 | `is-release` | `true` when the current branch equals `release-branch` |
-| `already-released` | `true` when tag `v<version>` exists, skip build and publish |
+| `skip-build` | `true` when build and publish must be skipped: tag `v<version>` already exists, or (push only) the commit message has `+semver: skip` / `+semver: none`. Use `if: needs.calc-version.outputs.skip-build == 'false'` |
+| `already-released` | **deprecated**, use `skip-build`. `true` when tag `v<version>` exists |
 
 Pin the action to a tag (`@v0.5.0`) for reproducible versions, or to `@main` to always get the latest rules.
 The `main` minor-by-default rule and the maintenance-branch handling apply from `v0.5.0`; older tags keep the previous
