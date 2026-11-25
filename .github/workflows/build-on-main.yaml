@@ -7,7 +7,6 @@ on:
       - .github/**
       - kubernetes-manifests/**
       - src/**
-      - src-dt/**
       - charts/**
       - dynatrace/**
   workflow_dispatch:

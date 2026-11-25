@@ -4,11 +4,11 @@ inputs:
   config-file:
     description: "Config file holding the per-stage layer ARN (stage.<name>.agent.arn_layer_pattern_nodejs)"
     required: false
-    default: "src-dt/cloud-backend/config.yaml"
+    default: "dynatrace/cloud-backend/config.yaml"
   target-dir:
     description: "Directory the extension is unpacked into, one subdirectory per stage"
     required: false
-    default: "src-dt/cloud-backend/product-catalog-lambda-image/DynatraceOneAgentExtension"
+    default: "dynatrace/cloud-backend/product-catalog-lambda-image/DynatraceOneAgentExtension"
 
 runs:
   using: composite
