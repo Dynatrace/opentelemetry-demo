@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-loadgen-config
+data:
+  FRONTEND_URL: https://otel-demo.live.demoability.dynatracelabs.com
+  CONCURRENCY: "5"

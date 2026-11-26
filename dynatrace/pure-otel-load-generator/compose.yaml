@@ -1,0 +1,13 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-file: "5"
+    max-size: "10m"
+
+services:
+  pure-otel-load-generator:
+    image: ${IMAGE_NAME:-europe-docker.pkg.dev/dynatrace-demoability/docker/otel-loadgen}:${DEMO_VERSION:-local}
+    build: .
+    environment:
+      - FRONTEND_URL=${FRONTEND_URL:-http://frontend}
+    logging: *default-logging
