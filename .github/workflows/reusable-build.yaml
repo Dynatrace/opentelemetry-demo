@@ -14,12 +14,53 @@ on:
         description: "Image and chart version from calc-version"
         type: string
         required: true
-
-env:
-  CONTAINER_REGISTRY: europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop
-  HELM_REGISTRY: oci://europe-docker.pkg.dev/dynatrace-demoability/helm
-  CLOUD_BACKEND_AWS_REGION: us-east-1
-  LAMBDA_ARTIFACTS_BUCKET: astroshop-artifacts-bucket
+      container-registry:
+        description: "Container registry (with path prefix) used for images built from the root compose file"
+        type: string
+        required: false
+        default: "europe-docker.pkg.dev/dynatrace-demoability/docker/astroshop"
+      helm-registry:
+        description: "OCI registry URL charts are pushed to"
+        type: string
+        required: false
+        default: "oci://europe-docker.pkg.dev/dynatrace-demoability/helm"
+      aws-region:
+        description: "AWS region for ECR login, OneAgent layer download and Lambda artifacts bucket"
+        type: string
+        required: false
+        default: "us-east-1"
+      lambda-artifacts-bucket:
+        description: "S3 bucket Lambda zip packages are published to"
+        type: string
+        required: false
+        default: "astroshop-artifacts-bucket"
+      images-file:
+        description: "Path (in the caller repo) to the YAML listing extra images not in the root compose file"
+        type: string
+        required: false
+        default: ".github/images.yaml"
+      compose-file:
+        description: "Path (in the caller repo) to the root docker compose file scanned for build contexts"
+        type: string
+        required: false
+        default: "docker-compose.yml"
+      lambda-matrix:
+        description: "JSON array of Lambda packages: [{service, runtime, runtime-version, source-dir}]. Use [] to skip."
+        type: string
+        required: false
+        default: '[{"service":"raw-data-persistence","runtime":"nodejs","runtime-version":"22","source-dir":"dynatrace/cloud-backend/raw-data-persistence/src"},{"service":"reporting","runtime":"python","runtime-version":"3.12","source-dir":"dynatrace/cloud-backend/reporting/src"}]'
+      helm-matrix:
+        description: "JSON array of Helm charts: [{chart-path, image-tag-path}]. Use [] to skip."
+        type: string
+        required: false
+        default: '[{"chart-path":"charts/astroshop","image-tag-path":".opentelemetry-demo.default.image.tag"},{"chart-path":"charts/astroshop-consumer-service","image-tag-path":".tag"},{"chart-path":"charts/astroshop-cloud-backend","image-tag-path":".tag"}]'
+    secrets:
+      AWS_ROLE:
+        description: "AWS role ARN assumed via OIDC (ECR push, OneAgent layer, Lambda artifacts)"
+        required: false
+      GAR_CREDENTIALS:
+        description: "Google Artifact Registry credentials (JSON key) for image and chart push"
+        required: false
 
 jobs:
   list-images:
@@ -32,9 +73,11 @@ jobs:
 
       - name: List buildable services
         id: scan
-        uses: ./.github/actions/list-build-services
+        uses: Dynatrace/opentelemetry-demo/.github/actions/list-build-services@main
         with:
-          registry: ${{ env.CONTAINER_REGISTRY }}
+          registry: ${{ inputs.container-registry }}
+          compose-file: ${{ inputs.compose-file }}
+          images-file: ${{ inputs.images-file }}
           is-pr: ${{ inputs.is-pr }}
 
   build-push-image:
@@ -56,26 +99,26 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE }}
-          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          aws-region: ${{ inputs.aws-region }}
           role-session-name: GitHub-OIDC-astroshop-build
 
       - name: Download OneAgent Lambda extension
         if: matrix.needs-oneagent-layer == 'true'
-        uses: ./.github/actions/download-oneagent-layer
+        uses: Dynatrace/opentelemetry-demo/.github/actions/download-oneagent-layer@main
 
       - name: Log in to GAR
         if: inputs.push && matrix.registry-type == 'gar'
-        uses: ./.github/actions/docker-gar-login
+        uses: Dynatrace/opentelemetry-demo/.github/actions/docker-gar-login@main
         env:
           GAR_CREDENTIALS: ${{ secrets.GAR_CREDENTIALS }}
 
       - name: Log in to ECR
         id: ecr
         if: inputs.push && matrix.registry-type == 'ecr'
-        uses: ./.github/actions/docker-ecr-login
+        uses: Dynatrace/opentelemetry-demo/.github/actions/docker-ecr-login@main
 
       - name: Build ${{ inputs.push && 'and push ' || '' }}${{ matrix.service }}
-        uses: ./.github/actions/build-push-image
+        uses: Dynatrace/opentelemetry-demo/.github/actions/build-push-image@main
         with:
           service: ${{ matrix.service }}
           working-directory: ${{ matrix.directory }}
@@ -88,6 +131,7 @@ jobs:
           tag: ${{ inputs.version }}
 
   publish-lambda-zip:
+    if: inputs.lambda-matrix != '[]'
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
@@ -95,15 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service: raw-data-persistence
-            runtime: nodejs
-            runtime-version: "22"
-            source-dir: dynatrace/cloud-backend/raw-data-persistence/src
-          - service: reporting
-            runtime: python
-            runtime-version: "3.12"
-            source-dir: dynatrace/cloud-backend/reporting/src
+        include: ${{ fromJson(inputs.lambda-matrix) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -113,42 +149,37 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE }}
-          aws-region: ${{ env.CLOUD_BACKEND_AWS_REGION }}
+          aws-region: ${{ inputs.aws-region }}
           role-session-name: GitHub-OIDC-astroshop-build
 
       - name: ${{ inputs.push && 'Package and publish' || 'Package' }} ${{ matrix.service }}
-        uses: ./.github/actions/package-lambda-zip
+        uses: Dynatrace/opentelemetry-demo/.github/actions/package-lambda-zip@main
         with:
           service: ${{ matrix.service }}
           runtime: ${{ matrix.runtime }}
           runtime-version: ${{ matrix.runtime-version }}
           source-dir: ${{ matrix.source-dir }}
           version: ${{ inputs.version }}
-          s3-bucket: ${{ env.LAMBDA_ARTIFACTS_BUCKET }}
+          s3-bucket: ${{ inputs.lambda-artifacts-bucket }}
           push: ${{ inputs.push }}
 
   build-push-helm:
+    if: inputs.helm-matrix != '[]'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - chart-path: charts/astroshop
-            image-tag-path: .opentelemetry-demo.default.image.tag
-          - chart-path: charts/astroshop-consumer-service
-            image-tag-path: .tag
-          - chart-path: charts/astroshop-cloud-backend
-            image-tag-path: .tag
+        include: ${{ fromJson(inputs.helm-matrix) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Build ${{ inputs.push && 'and push ' || '' }}${{ matrix.chart-path }}
-        uses: ./.github/actions/build-push-helm
+        uses: Dynatrace/opentelemetry-demo/.github/actions/build-push-helm@main
         with:
           chart-path: ${{ matrix.chart-path }}
           image-tag-path: ${{ matrix.image-tag-path }}
           push: ${{ inputs.push }}
-          registry-url: ${{ env.HELM_REGISTRY }}
+          registry-url: ${{ inputs.helm-registry }}
           version: ${{ inputs.version }}
           credentials: ${{ secrets.GAR_CREDENTIALS }}
