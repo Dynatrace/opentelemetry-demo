@@ -36,7 +36,8 @@ jobs:
     uses: ./.github/workflows/reusable-calc-version.yaml
 
   build:
-    if: needs.calc-version.outputs.skip-build == 'false'
+    # skip draft PRs; ready_for_review trigger starts the build when marked ready
+    if: github.event.pull_request.draft != true && needs.calc-version.outputs.skip-build == 'false'
     needs: calc-version
     permissions:
       id-token: write
