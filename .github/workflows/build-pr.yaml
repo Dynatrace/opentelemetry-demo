@@ -1,7 +1,6 @@
 name: PR build
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - "main"
     paths:
@@ -36,8 +35,7 @@ jobs:
     uses: ./.github/workflows/reusable-calc-version.yaml
 
   build:
-    # skip draft PRs; ready_for_review trigger starts the build when marked ready
-    if: github.event.pull_request.draft != true && needs.calc-version.outputs.skip-build == 'false'
+    if: needs.calc-version.outputs.skip-build == 'false'
     needs: calc-version
     permissions:
       id-token: write

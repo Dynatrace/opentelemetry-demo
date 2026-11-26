@@ -32,7 +32,6 @@ Always keep `.env.override` in the compose env chain; without it the custom Dyna
 
 ## CI / releases
 
-- `build-pr.yaml` skips draft PRs (`build` job `if` includes `github.event.pull_request.draft != true`; `ready_for_review` is a trigger type so marking ready starts the build). Keep this when editing triggers.
 - `build-pr.yaml` and `build-on-main.yaml` chain `reusable-calc-version` → `reusable-build` → (`reusable-promote-release` on release). `calc-version` gates the build via `skip-build`.
 - **Reusable workflows are consumed from other repos** (see `docs/reusable-workflows.md`): composite actions are referenced by full path `Dynatrace/opentelemetry-demo/.github/actions/<x>@main`, never `./.github/actions/...`. `reusable-build` is parametrized by inputs (registries, region, bucket, `lambda-matrix`, `helm-matrix`) whose defaults are this repo's values — keep defaults working for the in-repo callers when changing it. Secrets are declared in `workflow_call.secrets` (`AWS_ROLE`, `GAR_CREDENTIALS`).
 - Versioning (GitVersion 6, `.github/actions/calc-version`): push to `main` bumps **minor** and releases; other branches get patch bump + `-<branch>-<sha>` suffix; control with `+semver: major|minor|fix|skip` in commit/squash message. Details: `dynatrace/docs/versioning.md`.
