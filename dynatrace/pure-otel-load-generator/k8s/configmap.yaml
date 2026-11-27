@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: otel-loadgen-config
 data:
-  FRONTEND_URL: https://otel-demo.live.demoability.dynatracelabs.com
+  FRONTEND_URL: https://example.com
   CONCURRENCY: "5"
