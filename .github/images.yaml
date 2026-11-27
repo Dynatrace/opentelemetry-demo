@@ -25,6 +25,12 @@ images:
     registry-type: gar
     registry: europe-docker.pkg.dev/dynatrace-demoability/docker/cloud-backend-load-generator
 
+  - service: pure-otel-load-generator
+    directory: dynatrace/pure-otel-load-generator
+    compose-file: compose.yaml
+    registry-type: gar
+    registry: europe-docker.pkg.dev/dynatrace-demoability/docker/otel-loadgen
+
   - service: data-processing
     directory: dynatrace/cloud-backend
     compose-file: compose.yaml
