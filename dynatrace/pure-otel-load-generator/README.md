@@ -3,11 +3,10 @@
 TypeScript / Puppeteer port of the Python/Locust load generator found at
 [`dynatrace/load-generator`](../load-generator).
 
-Built on top of [`@demoability/loadgen-core`](https://bitbucket.lab.dynatrace.org/projects/DEM/repos/loadgen-core).
+Built on top of `@demoability/loadgen-core`
 
 ## Deployment
 
-> **NOTE:** the actual deployment on demoability envs happens through argo and is defined [here](https://github.com/Dynatrace/opentelemetry-demo-infrastructure/blob/main/resources/kustomize-components/otel-loadgen/deployment.yaml)
 
 The deployment defined under `k8s` is left as an example or for convenience during testing
 
