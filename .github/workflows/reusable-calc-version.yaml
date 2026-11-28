@@ -37,6 +37,6 @@ jobs:
 
       - name: Calculate version
         id: version
-        uses: ./.github/actions/calc-version
+        uses: Dynatrace/opentelemetry-demo/.github/actions/calc-version@main
         with:
           release-branch: ${{ inputs.release-branch }}
